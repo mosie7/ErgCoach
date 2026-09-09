@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b1116;
+  --bg-elevated: #121a21;
+  --bg-panel: #162028;
+  --border: rgba(151, 180, 194, 0.16);
+  --text: #e8eef2;
+  --text-muted: #8aa0ad;
+  --accent: #e85d04;
+  --accent-2: #f48c06;
+  --good: #2a9d8f;
+  --warn: #e9c46a;
+  --bad: #e76f51;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(232, 93, 4, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(42, 157, 143, 0.1), transparent 50%),
+    linear-gradient(180deg, #0b1116 0%, #0f161c 40%, #0b1116 100%);
+  color: var(--text);
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-ink-700/60 bg-surface-raised/90 shadow-panel backdrop-blur;
+  }
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400;
+  }
+  .metric {
+    @apply font-mono text-2xl tabular-nums text-ink-50;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-medium transition;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-soft;
+  }
+  .btn-ghost {
+    @apply btn border border-ink-600/80 bg-transparent text-ink-100 hover:bg-ink-800/80;
+  }
+  .input {
+    @apply w-full rounded-lg border border-ink-600/70 bg-ink-950/60 px-3 py-2 text-sm text-ink-50 outline-none ring-accent/40 placeholder:text-ink-500 focus:ring-2;
+  }
+}

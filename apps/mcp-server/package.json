@@ -1,0 +1,31 @@
+{
+  "name": "@ergcoach/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ergcoach-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts || true",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ergcoach/database": "workspace:*",
+    "@ergcoach/services": "workspace:*",
+    "@ergcoach/shared": "workspace:*",
+    "@ergcoach/training-engine": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
