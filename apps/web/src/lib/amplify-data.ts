@@ -10,6 +10,7 @@ import outputs from '../../amplify_outputs.json';
 export const serverDataClient = generateServerClientUsingCookies({
   config: outputs,
   cookies,
+  authMode: 'userPool',
 }) as unknown as DataClient;
 
 setDataClient(serverDataClient);

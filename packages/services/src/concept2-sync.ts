@@ -7,18 +7,26 @@ import {
 import { createManualWorkout } from './workouts.js';
 
 function appBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').trim().replace(/\/$/, '');
+}
+
+export function getConcept2RedirectUri(): string {
+  return (
+    process.env.CONCEPT2_REDIRECT_URI?.trim() ||
+    `${appBaseUrl()}/api/concept2/callback`
+  );
 }
 
 function getConcept2Config(): Concept2OAuthConfig {
   return {
-    clientId: process.env.CONCEPT2_CLIENT_ID ?? '',
-    clientSecret: process.env.CONCEPT2_CLIENT_SECRET ?? '',
-    redirectUri:
-      process.env.CONCEPT2_REDIRECT_URI ?? `${appBaseUrl()}/api/concept2/callback`,
-    authUrl: process.env.CONCEPT2_AUTH_URL ?? 'https://log.concept2.com/oauth/authorize',
-    tokenUrl: process.env.CONCEPT2_TOKEN_URL ?? 'https://log.concept2.com/oauth/access_token',
-    apiBaseUrl: process.env.CONCEPT2_API_BASE_URL ?? 'https://log.concept2.com/api',
+    clientId: process.env.CONCEPT2_CLIENT_ID?.trim() ?? '',
+    clientSecret: process.env.CONCEPT2_CLIENT_SECRET?.trim() ?? '',
+    redirectUri: getConcept2RedirectUri(),
+    authUrl:
+      process.env.CONCEPT2_AUTH_URL?.trim() || 'https://log.concept2.com/oauth/authorize',
+    tokenUrl:
+      process.env.CONCEPT2_TOKEN_URL?.trim() || 'https://log.concept2.com/oauth/access_token',
+    apiBaseUrl: process.env.CONCEPT2_API_BASE_URL?.trim() || 'https://log.concept2.com/api',
   };
 }
 
@@ -79,7 +87,7 @@ export async function completeConcept2OAuth(userId: string, code: string) {
   const useMock = shouldUseConcept2Mock();
   const client = createConcept2Client(getConcept2Config(), { useMock });
   const tokens = await client.connect(code);
-  return prisma.dataConnection.upsert({
+  const connection = await prisma.dataConnection.upsert({
     where: { userId_provider: { userId, provider: 'concept2' } },
     create: {
       userId,
@@ -96,10 +104,20 @@ export async function completeConcept2OAuth(userId: string, code: string) {
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
       metadata: { mock: useMock },
-      // Clear stale sync cursor so the next sync pulls full history after reconnect.
-      lastSyncAt: null,
     },
   });
+
+  // Force next sync to pull full history after reconnect.
+  try {
+    await prisma.dataConnection.update({
+      where: { id: String(connection.id) },
+      data: { lastSyncAt: new Date(0) },
+    });
+  } catch (err) {
+    console.error('[concept2] failed to reset sync cursor:', err);
+  }
+
+  return connection;
 }
 
 export async function disconnectConcept2(userId: string) {
@@ -166,11 +184,14 @@ export async function syncConcept2Workouts(
   );
 
   // Full sync (reconnect / explicit) ignores lastSyncAt so historical workouts return.
-  // Also ignore a stale cursor when nothing has ever been imported successfully.
-  const updatedAfter =
-    options?.full || !connection?.lastSyncAt || known.size === 0
-      ? undefined
-      : connection.lastSyncAt;
+  // Also ignore a stale/empty cursor (including epoch reset after reconnect).
+  const lastSyncAt = connection?.lastSyncAt ? new Date(connection.lastSyncAt) : null;
+  const hasUsableCursor =
+    lastSyncAt != null &&
+    !Number.isNaN(lastSyncAt.getTime()) &&
+    lastSyncAt.getTime() > 0 &&
+    known.size > 0;
+  const updatedAfter = options?.full || !hasUsableCursor ? undefined : lastSyncAt;
 
   const result = await client.syncWorkouts({
     updatedAfter,

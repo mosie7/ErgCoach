@@ -93,15 +93,27 @@ function SettingsInner() {
 
       {params.get('concept2') === 'error' ? (
         <div className="rounded-apple border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800">
-          Concept2 connection failed
-          {params.get('reason') ? `: ${params.get('reason')}` : ''}. Confirm the Concept2 app
-          redirect URI is{' '}
-          <code className="text-[12px]">
+          <p>
+            Concept2 connection failed
+            {params.get('reason') ? `: ${params.get('reason')}` : ''}.
+          </p>
+          <p className="mt-2">
+            In the{' '}
+            <a
+              className="underline"
+              href="https://log.concept2.com/developers"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Concept2 developer console
+            </a>
+            , your app redirect URI must be exactly:
+          </p>
+          <code className="mt-2 block break-all rounded bg-white/70 px-2 py-1 text-[12px] text-red-900">
             {typeof window !== 'undefined'
               ? `${window.location.origin}/api/concept2/callback`
-              : '/api/concept2/callback'}
+              : 'https://main.d174rb114dlpeo.amplifyapp.com/api/concept2/callback'}
           </code>
-          .
         </div>
       ) : null}
 
@@ -111,6 +123,14 @@ function SettingsInner() {
             <h2 className="section-title">Concept2 Logbook</h2>
             <p className="mt-1 text-[14px] text-apple-gray-500">
               OAuth connects <strong>your</strong> Logbook to <strong>your</strong> account only.
+            </p>
+            <p className="mt-2 text-[12px] text-apple-gray-400">
+              Required redirect URI:{' '}
+              <code className="break-all">
+                {typeof window !== 'undefined'
+                  ? `${window.location.origin}/api/concept2/callback`
+                  : '/api/concept2/callback'}
+              </code>
             </p>
           </div>
           <span
