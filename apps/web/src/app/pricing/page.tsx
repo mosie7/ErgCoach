@@ -26,9 +26,12 @@ const ENTITLEMENT_LABELS: Record<string, string> = {
   workouts: 'Manual + Concept2 workout logging',
   metrics: 'Deterministic pace, drift, volume metrics',
   dashboard: 'Goal readiness & progress dashboard',
-  ai_coach_chat: 'AI coach chat',
+  ai_coach_chat: 'AI coach chat with training-block context',
   ai_workout_analysis: 'AI post-workout coaching reports',
   ai_weekly_review: 'AI weekly review narrative',
+  training_blocks: 'Training block tracking & analysis',
+  comparable_analysis: 'Block-aware comparable sessions',
+  why_evidence: 'Why? evidence under AI conclusions',
 };
 
 export default function PricingPage() {

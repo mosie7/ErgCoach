@@ -1,4 +1,4 @@
-import { getDashboardData } from '@ergcoach/services';
+import { getDashboardData, getCurrentTrainingContext } from '@ergcoach/services';
 import { formatDistance, formatDuration, formatPace } from '@ergcoach/shared';
 import { requireSessionAthlete } from '@/lib/session';
 import { Metric, WorkoutRow } from '@/components/ui';
@@ -8,9 +8,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const { athlete, user } = await requireSessionAthlete();
-  const data = await getDashboardData(athlete.id);
-  const readiness = data.readiness;
+  const [data, ctx] = await Promise.all([
+    getDashboardData(athlete.id),
+    getCurrentTrainingContext(athlete.id),
+  ]);
+  const readiness = ctx.readiness ?? data.readiness;
   const projection = data.projection;
+  const block = ctx.activeTrainingBlock;
 
   return (
     <div className="space-y-8">
@@ -38,12 +42,12 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {!data.goal ? (
+      {!data.goal && !block ? (
         <div className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="section-title">Pick a training program</p>
             <p className="mt-1 text-[14px] text-apple-gray-500">
-              Choose 2k, 5k, 10k, half marathon, marathon, or 100k — then connect Concept2.
+              Choose 2k, 5k, half marathon, or marathon to create a training block.
             </p>
           </div>
           <div className="flex gap-2">
@@ -55,6 +59,57 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+      ) : null}
+
+      {block ? (
+        <section className="panel p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="label">Current training block</p>
+              <h2 className="section-title mt-2">{block.name}</h2>
+              <p className="mt-1 text-[13px] text-apple-gray-500">
+                {ctx.currentWeek != null
+                  ? `Week ${ctx.currentWeek}${ctx.totalWeeks ? ` of ${ctx.totalWeeks}` : ''}`
+                  : 'In progress'}
+                {' · '}
+                {ctx.blockSessionCount} sessions
+                {ctx.progressPercent != null ? ` · ${ctx.progressPercent}%` : ''}
+              </p>
+            </div>
+            <Link href="/training" className="text-[13px] text-apple-blue hover:underline">
+              Open block
+            </Link>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Metric label="Goal distance" value={formatDistance(block.targetDistance)} />
+            <Metric label="Target pace" value={formatPace(block.targetPaceSeconds500m)} />
+            <Metric
+              label="Target time"
+              value={block.targetTimeSeconds ? formatDuration(block.targetTimeSeconds) : '—'}
+            />
+            <Metric label="This week" value={formatDistance(ctx.thisWeek.totalMeters)} />
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3 text-[13px]">
+            {(
+              [
+                ['UT2 trend', ctx.currentTrends.ut2Efficiency],
+                ['UT1 trend', ctx.currentTrends.ut1Efficiency],
+                ['Long-row durability', ctx.currentTrends.longRowDurability],
+              ] as const
+            ).map(([label, trend]) => (
+              <div key={label} className="rounded-apple bg-apple-gray-50 px-3 py-2 dark:bg-apple-gray-800">
+                <div className="text-apple-gray-400">{label}</div>
+                <div className="mt-1 capitalize">{trend.direction.replace('_', ' ')}</div>
+              </div>
+            ))}
+          </div>
+          {readiness ? (
+            <p className="mt-4 text-[13px] text-apple-gray-500">
+              Marathon readiness {readiness.score}/100 · {readiness.confidence} confidence
+              {readiness.primaryLimiter ? ` · ${readiness.primaryLimiter}` : ''}
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">

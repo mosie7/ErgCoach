@@ -7,3 +7,7 @@ export * from './concept2-sync.js';
 export * from './chat.js';
 export * from './entitlements.js';
 export * from './plans.js';
+export * from './blocks.js';
+export * from './training-context.js';
+export * from './ai-context.js';
+export * from './coach-state.js';
