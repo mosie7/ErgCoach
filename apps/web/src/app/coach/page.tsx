@@ -131,7 +131,7 @@ export default function CoachPage() {
       <section className="panel flex min-h-[420px] flex-col">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {messages.length === 0 ? (
-            <p className="text-sm text-apple-gray-700 dark:text-white0">Ask about progress, execution, or goal realism.</p>
+            <p className="text-sm text-apple-gray-700 dark:text-white">Ask about progress, execution, or goal realism.</p>
           ) : null}
           {messages.map((m, i) => (
             <div
@@ -145,10 +145,10 @@ export default function CoachPage() {
               {m.content}
             </div>
           ))}
-          {pending ? <p className="text-sm text-apple-gray-700 dark:text-white0">Retrieving evidence…</p> : null}
+          {pending ? <p className="text-sm text-apple-gray-700 dark:text-white">Retrieving evidence…</p> : null}
         </div>
         {tools.length ? (
-          <div className="border-t border-apple-gray-200 dark:border-apple-gray-800 px-4 py-2 text-[11px] text-apple-gray-700 dark:text-white0">
+          <div className="border-t border-apple-gray-200 dark:border-apple-gray-800 px-4 py-2 text-[11px] text-apple-gray-700 dark:text-white">
             Tools used: {tools.join(', ')}
           </div>
         ) : null}

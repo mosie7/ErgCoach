@@ -14,10 +14,21 @@ export default async function WorkoutDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const workout = await getWorkout(id);
+
+  let workout: Awaited<ReturnType<typeof getWorkout>> | null = null;
+  try {
+    workout = await getWorkout(id);
+  } catch (err) {
+    console.error('[WorkoutDetail] getWorkout failed:', err);
+  }
   if (!workout) notFound();
 
-  const comparable = await getComparableWorkouts(id, 5);
+  let comparable: Awaited<ReturnType<typeof getComparableWorkouts>> = [];
+  try {
+    comparable = await getComparableWorkouts(id, 5);
+  } catch (err) {
+    console.error('[WorkoutDetail] getComparableWorkouts failed:', err);
+  }
   const metrics = (workout.analysis?.calculatedMetrics ?? {}) as Record<string, unknown>;
   const whyEvidence = (metrics.whyEvidence as WhyItem[] | undefined) ?? [];
   const trainingBlock = metrics.trainingBlock as { name?: string; id?: string } | null;
@@ -367,7 +378,7 @@ function ListBlock({
           <li key={item} className="flex gap-2">
             <span
               className={
-                tone === 'good' ? 'text-teal-400' : tone === 'warn' ? 'text-amber-400' : 'text-apple-gray-700 dark:text-white0'
+                tone === 'good' ? 'text-teal-400' : tone === 'warn' ? 'text-amber-400' : 'text-apple-gray-700 dark:text-white'
               }
             >
               •

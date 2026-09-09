@@ -7,10 +7,13 @@ import {
 } from '@ergcoach/billing';
 
 export async function getUserIdForAthlete(athleteId: string): Promise<string> {
-  const athlete = await prisma.athleteProfile.findUniqueOrThrow({
+  const athlete = await prisma.athleteProfile.findUnique({
     where: { id: athleteId },
     select: { userId: true },
   });
+  if (!athlete) {
+    throw new Error(`AthleteProfile not found for entitlement check: ${athleteId}`);
+  }
   return athlete.userId;
 }
 

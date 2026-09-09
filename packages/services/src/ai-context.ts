@@ -49,7 +49,7 @@ function summariseTypeSeries(
  * Prefers current-block comparables + summaries — not raw lifetime dumps.
  */
 export async function buildWorkoutAnalysisContext(workoutId: string) {
-  const workout = await prisma.workout.findUniqueOrThrow({
+  const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     include: {
       splits: { orderBy: { index: 'asc' } },
@@ -65,6 +65,9 @@ export async function buildWorkoutAnalysisContext(workoutId: string) {
       },
     },
   });
+  if (!workout) {
+    throw new Error(`Workout not found for analysis: ${workoutId}`);
+  }
 
   const athleteId = workout.athleteId;
   const context = await getCurrentTrainingContext(athleteId);

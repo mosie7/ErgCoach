@@ -18,11 +18,36 @@ export default async function TrainingPage({
   const { athlete } = await requireSessionAthlete();
   const params = await searchParams;
   const filter = (params.type ?? 'all').toLowerCase();
-  const ctx = await getCurrentTrainingContext(athlete.id);
-  const block = ctx.activeTrainingBlock
-    ? await getTrainingBlock(athlete.id, ctx.activeTrainingBlock.id)
-    : null;
-  const upcoming = await listUpcomingPlannedWorkouts(athlete.id, 6);
+
+  let ctx: Awaited<ReturnType<typeof getCurrentTrainingContext>>;
+  let block: Awaited<ReturnType<typeof getTrainingBlock>> | null = null;
+  let upcoming: Awaited<ReturnType<typeof listUpcomingPlannedWorkouts>> | null = null;
+
+  try {
+    ctx = await getCurrentTrainingContext(athlete.id);
+    block = ctx.activeTrainingBlock
+      ? await getTrainingBlock(athlete.id, ctx.activeTrainingBlock.id)
+      : null;
+    upcoming = await listUpcomingPlannedWorkouts(athlete.id, 6);
+  } catch (err) {
+    console.error('[TrainingPage] context load failed:', err);
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="label">Training</p>
+          <h1 className="page-title mt-1">Training</h1>
+        </div>
+        <section className="panel p-5">
+          <p className="text-[14px] text-apple-gray-500">
+            Unable to load training data. Try logging some workouts first.
+          </p>
+          <Link href="/workouts/new" className="btn-primary mt-4 inline-block">
+            Log a workout
+          </Link>
+        </section>
+      </div>
+    );
+  }
 
   const workouts = ctx.currentBlockWorkouts.filter((w) => {
     if (filter === 'all') return true;

@@ -109,7 +109,7 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
 
   if (input.analyse !== false) {
     await runPostWorkoutAnalysis(workout.id);
-    return prisma.workout.findUniqueOrThrow({
+    const result = await prisma.workout.findUnique({
       where: { id: workout.id },
       include: {
         splits: { orderBy: { index: 'asc' } },
@@ -119,6 +119,7 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
         trainingBlock: true,
       },
     });
+    return result ?? workout;
   }
 
   return workout;

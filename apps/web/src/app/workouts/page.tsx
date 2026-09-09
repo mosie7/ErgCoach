@@ -7,7 +7,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function WorkoutsPage() {
   const { athlete } = await requireSessionAthlete();
-  const workouts = await getRecentWorkouts(athlete.id, 50);
+
+  let workouts: Awaited<ReturnType<typeof getRecentWorkouts>> = [];
+  try {
+    workouts = await getRecentWorkouts(athlete.id, 50);
+  } catch (err) {
+    console.error('[WorkoutsPage] failed to load workouts:', err);
+  }
 
   return (
     <div className="space-y-6">

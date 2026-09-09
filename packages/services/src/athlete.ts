@@ -9,13 +9,17 @@ import {
 import { formatPace } from '@ergcoach/shared';
 
 export async function getAthleteProfile(athleteId: string) {
-  return prisma.athleteProfile.findUniqueOrThrow({
+  const profile = await prisma.athleteProfile.findUnique({
     where: { id: athleteId },
     include: {
       user: { select: { id: true, email: true, displayName: true } },
       hrZones: { orderBy: { zoneIndex: 'asc' } },
     },
   });
+  if (!profile) {
+    throw new Error(`AthleteProfile not found: ${athleteId}`);
+  }
+  return profile;
 }
 
 export async function getAthleteByUserId(userId: string) {

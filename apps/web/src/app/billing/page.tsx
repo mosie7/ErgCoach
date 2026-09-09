@@ -99,7 +99,7 @@ function BillingInner() {
               </div>
             </div>
             {access.isComplimentary ? (
-              <p className="text-xs text-apple-gray-700 dark:text-white0">
+              <p className="text-xs text-apple-gray-700 dark:text-white">
                 Complimentary demo grant (no Stripe customer). Real subscribers manage via Stripe
                 Customer Portal.
               </p>
@@ -109,7 +109,7 @@ function BillingInner() {
             ) : null}
           </>
         ) : (
-          <p className="text-sm text-apple-gray-700 dark:text-white0">Loading…</p>
+          <p className="text-sm text-apple-gray-700 dark:text-white">Loading…</p>
         )}
 
         <div className="flex flex-wrap gap-2">

@@ -8,11 +8,37 @@ export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
   const { athlete, user } = await requireSessionAthlete();
-  const [data, ctx] = await Promise.all([
-    getDashboardData(athlete.id),
-    getCurrentTrainingContext(athlete.id),
-  ]);
-  const readiness = ctx.readiness ?? data.readiness;
+
+  let data: Awaited<ReturnType<typeof getDashboardData>>;
+  let ctx: Awaited<ReturnType<typeof getCurrentTrainingContext>>;
+
+  try {
+    [data, ctx] = await Promise.all([
+      getDashboardData(athlete.id),
+      getCurrentTrainingContext(athlete.id),
+    ]);
+  } catch (err) {
+    console.error('[Dashboard] data load failed:', err);
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="label">Dashboard</p>
+          <h1 className="page-title mt-1">{user.displayName}</h1>
+        </div>
+        <section className="panel p-5">
+          <p className="text-[14px] text-apple-gray-500">
+            Something went wrong loading your dashboard. This usually resolves after logging a few workouts.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <Link href="/workouts/new" className="btn-primary">Log a workout</Link>
+            <Link href="/programs" className="btn-ghost">Browse programs</Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  const readiness = ctx.readiness ?? data.readiness ?? null;
   const projection = data.projection;
   const block = ctx.activeTrainingBlock;
 
@@ -157,18 +183,26 @@ export default async function DashboardPage() {
 
         <section className="panel p-5">
           <p className="label">Readiness</p>
-          <div className="mt-2 flex items-end gap-3">
-            <span className="font-display text-[56px] font-semibold tracking-[-0.05em] tabular-nums">
-              {readiness.score}
-            </span>
-            <div className="pb-2 text-[13px] text-apple-gray-500">
-              <div className="capitalize">{readiness.confidence} confidence</div>
-            </div>
-          </div>
-          <p className="mt-4 text-[14px] text-apple-gray-600 dark:text-apple-gray-300">
-            <span className="text-apple-gray-400">Limiter · </span>
-            {readiness.primaryLimiter}
-          </p>
+          {readiness ? (
+            <>
+              <div className="mt-2 flex items-end gap-3">
+                <span className="font-display text-[56px] font-semibold tracking-[-0.05em] tabular-nums">
+                  {readiness.score}
+                </span>
+                <div className="pb-2 text-[13px] text-apple-gray-500">
+                  <div className="capitalize">{readiness.confidence} confidence</div>
+                </div>
+              </div>
+              <p className="mt-4 text-[14px] text-apple-gray-600 dark:text-apple-gray-300">
+                <span className="text-apple-gray-400">Limiter · </span>
+                {readiness.primaryLimiter}
+              </p>
+            </>
+          ) : (
+            <p className="mt-4 text-[14px] text-apple-gray-500">
+              Log workouts and set a goal to unlock readiness scoring.
+            </p>
+          )}
         </section>
 
         <section className="panel p-5">

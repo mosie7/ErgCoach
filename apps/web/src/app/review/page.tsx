@@ -2,27 +2,62 @@ import { generateWeeklyReview } from '@ergcoach/services';
 import { formatDistance, formatDuration } from '@ergcoach/shared';
 import { requireSessionAthlete } from '@/lib/session';
 import { Metric } from '@/components/ui';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+type ReviewSummary = {
+  sessionsCompleted?: number;
+  sessionsMissed?: number;
+  actualMeters?: number;
+  plannedMeters?: number;
+  durationSeconds?: number;
+  intensityBreakdown?: Record<string, number>;
+  strongestWorkout?: string;
+  biggestPositiveSignal?: string;
+  potentialConcern?: string;
+  progressTowardGoal?: string;
+  recommendedEmphasis?: string[];
+  narrative?: { narrative?: string; recommendedEmphasis?: string[] };
+  aiLocked?: boolean;
+};
+
 export default async function ReviewPage() {
   const { athlete } = await requireSessionAthlete();
-  const review = await generateWeeklyReview(athlete.id);
-  const summary = review.summary as {
-    sessionsCompleted?: number;
-    sessionsMissed?: number;
-    actualMeters?: number;
-    plannedMeters?: number;
-    durationSeconds?: number;
-    intensityBreakdown?: Record<string, number>;
-    strongestWorkout?: string;
-    biggestPositiveSignal?: string;
-    potentialConcern?: string;
-    progressTowardGoal?: string;
-    recommendedEmphasis?: string[];
-    narrative?: { narrative?: string; recommendedEmphasis?: string[] };
-    aiLocked?: boolean;
-  };
+
+  let review: { weekStart: string | Date; aiNarrative?: string | null; summary: unknown } | null = null;
+  let error: string | null = null;
+
+  try {
+    review = await generateWeeklyReview(athlete.id);
+  } catch (err) {
+    console.error('[ReviewPage] generateWeeklyReview failed:', err);
+    error = err instanceof Error ? err.message : 'Failed to generate weekly review';
+  }
+
+  if (error || !review) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="label">Weekly review</p>
+          <h1 className="page-title text-[32px]">This week</h1>
+        </div>
+        <section className="panel p-5">
+          <p className="text-[14px] text-apple-gray-500">
+            {error ?? 'No review data available yet.'}
+          </p>
+          <p className="mt-2 text-[13px] text-apple-gray-400">
+            Log some workouts first, then come back for your weekly review.
+          </p>
+          <Link href="/workouts/new" className="btn-primary mt-4 inline-block">
+            Log a workout
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
+  const summary = (review.summary ?? {}) as ReviewSummary;
 
   return (
     <div className="space-y-6">
@@ -44,12 +79,12 @@ export default async function ReviewPage() {
       <section className="panel p-5">
         <p className="label">Narrative</p>
         <p className="mt-3 text-[16px] leading-relaxed text-apple-gray-700 dark:text-apple-gray-100">
-          {review.aiNarrative ?? summary.narrative?.narrative}
+          {review.aiNarrative ?? summary.narrative?.narrative ?? 'No narrative generated for this week.'}
         </p>
         {summary.aiLocked ? (
-          <a href="/pricing" className="mt-3 inline-block text-[13px] text-apple-blue hover:underline">
+          <Link href="/pricing" className="mt-3 inline-block text-[13px] text-apple-blue hover:underline">
             Upgrade to Pro for AI weekly coaching
-          </a>
+          </Link>
         ) : null}
       </section>
 
@@ -57,15 +92,15 @@ export default async function ReviewPage() {
         <section className="panel space-y-4 p-5 text-[14px]">
           <div>
             <p className="label">Strongest workout</p>
-            <p className="mt-1">{summary.strongestWorkout}</p>
+            <p className="mt-1">{summary.strongestWorkout ?? '—'}</p>
           </div>
           <div>
             <p className="label">Positive signal</p>
-            <p className="mt-1">{summary.biggestPositiveSignal}</p>
+            <p className="mt-1">{summary.biggestPositiveSignal ?? '—'}</p>
           </div>
           <div>
             <p className="label">Watch-out</p>
-            <p className="mt-1">{summary.potentialConcern}</p>
+            <p className="mt-1">{summary.potentialConcern ?? '—'}</p>
           </div>
         </section>
         <section className="panel p-5">

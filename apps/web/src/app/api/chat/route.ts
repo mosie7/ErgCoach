@@ -3,10 +3,14 @@ import { coachChat, getChatHistory, EntitlementError } from '@ergcoach/services'
 import { getSessionAthlete } from '@/lib/session';
 
 export async function GET() {
-  const session = await getSessionAthlete();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const messages = await getChatHistory(session.athlete.id);
-  return NextResponse.json({ messages });
+  try {
+    const session = await getSessionAthlete();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const messages = await getChatHistory(session.athlete.id);
+    return NextResponse.json({ messages });
+  } catch {
+    return NextResponse.json({ messages: [] });
+  }
 }
 
 export async function POST(req: Request) {
