@@ -10,40 +10,62 @@ export async function ensureAppUser(input: {
   email: string;
   displayName?: string;
 }): Promise<User> {
-  const existing = await prisma.user.findUnique({ where: { id: input.sub } });
-  if (existing) return existing;
-
   const displayName =
     input.displayName?.trim() || input.email.split('@')[0] || 'Athlete';
 
-  try {
-    return await prisma.user.create({
-      data: {
-        id: input.sub,
-        email: input.email.toLowerCase(),
-        displayName,
-        authProvider: 'cognito',
-        externalAuthId: input.sub,
-        athleteProfile: {
-          create: {
-            preferredUnits: 'metric',
-            hrZoneMethod: 'lthr',
-          },
+  let user = await prisma.user.findUnique({ where: { id: input.sub } });
+
+  if (!user) {
+    try {
+      user = await prisma.user.create({
+        data: {
+          id: input.sub,
+          email: input.email.toLowerCase(),
+          displayName,
+          authProvider: 'cognito',
+          externalAuthId: input.sub,
         },
-        subscription: {
-          create: {
-            plan: 'free',
-            status: 'inactive',
-          },
-        },
-      },
-    });
-  } catch (err) {
-    const raced = await prisma.user.findUnique({ where: { id: input.sub } });
-    if (raced) return raced;
-    const detail = err instanceof Error ? err.message : 'unknown error';
-    throw new Error(`Could not provision user profile: ${detail}`);
+      });
+    } catch (err) {
+      user = await prisma.user.findUnique({ where: { id: input.sub } });
+      if (!user) {
+        const detail = err instanceof Error ? err.message : 'unknown error';
+        throw new Error(`Could not provision user profile: ${detail}`);
+      }
+    }
   }
+
+  const athlete = await prisma.athleteProfile.findUnique({ where: { userId: input.sub } });
+  if (!athlete) {
+    try {
+      await prisma.athleteProfile.create({
+        data: {
+          userId: input.sub,
+          preferredUnits: 'metric',
+          hrZoneMethod: 'lthr',
+        },
+      });
+    } catch {
+      // Race with post-confirmation — ignore if another writer won.
+    }
+  }
+
+  const subscription = await prisma.subscription.findUnique({ where: { userId: input.sub } });
+  if (!subscription) {
+    try {
+      await prisma.subscription.create({
+        data: {
+          userId: input.sub,
+          plan: 'free',
+          status: 'inactive',
+        },
+      });
+    } catch {
+      // Race with post-confirmation — ignore if another writer won.
+    }
+  }
+
+  return user;
 }
 
 export async function getUserById(id: string): Promise<User | null> {
