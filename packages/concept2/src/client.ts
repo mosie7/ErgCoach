@@ -49,8 +49,11 @@ export class MockConcept2Client implements Concept2Client {
     return this.tokens;
   }
 
-  async getWorkouts(): Promise<Concept2NormalizedWorkout[]> {
-    return mockWorkouts.map((w) => normalizeConcept2Workout(w));
+  async getWorkouts(): Promise<{ workouts: Concept2NormalizedWorkout[]; hasMorePages: boolean }> {
+    return {
+      workouts: mockWorkouts.map((w) => normalizeConcept2Workout(w)),
+      hasMorePages: false,
+    };
   }
 
   async getWorkout(id: string): Promise<Concept2NormalizedWorkout | null> {
@@ -62,17 +65,17 @@ export class MockConcept2Client implements Concept2Client {
     updatedAfter?: Date;
     knownExternalIds?: Set<string>;
   }): Promise<Concept2SyncResult> {
-    const all = await this.getWorkouts();
+    const { workouts } = await this.getWorkouts();
     const imported: Concept2NormalizedWorkout[] = [];
     const skippedDuplicateIds: string[] = [];
-    for (const w of all) {
+    for (const w of workouts) {
       if (options?.knownExternalIds?.has(w.externalId)) {
         skippedDuplicateIds.push(w.externalId);
       } else {
         imported.push(w);
       }
     }
-    return { imported, updated: [], skippedDuplicateIds };
+    return { imported, updated: [], skippedDuplicateIds, hasMorePages: false };
   }
 
   async handleWebhook(payload: unknown): Promise<Concept2WebhookResult> {
@@ -167,9 +170,12 @@ export class HttpConcept2Client implements Concept2Client {
     updatedAfter?: Date;
     page?: number;
     perPage?: number;
-  }): Promise<Concept2NormalizedWorkout[]> {
+    maxPages?: number;
+  }): Promise<{ workouts: Concept2NormalizedWorkout[]; hasMorePages: boolean }> {
     const perPage = options?.perPage ?? 50;
     let page = options?.page ?? 1;
+    const maxPages = options?.page != null ? 1 : (options?.maxPages ?? 50);
+    const startPage = page;
     const all: Concept2NormalizedWorkout[] = [];
     let totalPages = 1;
 
@@ -193,9 +199,12 @@ export class HttpConcept2Client implements Concept2Client {
       const meta = data['meta'] as { pagination?: { total_pages?: number } } | undefined;
       totalPages = Number(meta?.pagination?.total_pages ?? 1) || 1;
       page += 1;
-    } while (page <= totalPages && options?.page == null);
+    } while (page <= totalPages && page < startPage + maxPages);
 
-    return all;
+    return {
+      workouts: all,
+      hasMorePages: page <= totalPages,
+    };
   }
 
   async getWorkout(id: string): Promise<Concept2NormalizedWorkout | null> {
@@ -210,8 +219,14 @@ export class HttpConcept2Client implements Concept2Client {
   async syncWorkouts(options?: {
     updatedAfter?: Date;
     knownExternalIds?: Set<string>;
-  }): Promise<Concept2SyncResult> {
-    const workouts = await this.getWorkouts({ updatedAfter: options?.updatedAfter });
+    maxPages?: number;
+    perPage?: number;
+  }): Promise<Concept2SyncResult & { hasMorePages?: boolean }> {
+    const { workouts, hasMorePages } = await this.getWorkouts({
+      updatedAfter: options?.updatedAfter,
+      maxPages: options?.maxPages ?? 2,
+      perPage: options?.perPage ?? 50,
+    });
     const imported: Concept2NormalizedWorkout[] = [];
     const skippedDuplicateIds: string[] = [];
     for (const w of workouts) {
@@ -222,7 +237,7 @@ export class HttpConcept2Client implements Concept2Client {
         imported.push(w);
       }
     }
-    return { imported, updated: [], skippedDuplicateIds };
+    return { imported, updated: [], skippedDuplicateIds, hasMorePages };
   }
 
   async handleWebhook(payload: unknown): Promise<Concept2WebhookResult> {

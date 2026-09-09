@@ -4,6 +4,7 @@ import {
   type Concept2OAuthConfig,
   type Concept2Tokens,
 } from '@ergcoach/concept2';
+import { getActiveTrainingBlock } from './blocks.js';
 import { createManualWorkout } from './workouts.js';
 
 function appBaseUrl(): string {
@@ -152,7 +153,7 @@ async function saveConcept2Tokens(
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
       externalUserId: meta.externalUserId ?? null,
-      metadata: { mock: meta.mock, source: meta.source },
+      metadata: { mock: meta.mock, source: meta.source, backfillPage: 1 },
     },
     update: {
       accessTokenEnc: encodeToken(tokens),
@@ -160,7 +161,7 @@ async function saveConcept2Tokens(
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
       externalUserId: meta.externalUserId ?? null,
-      metadata: { mock: meta.mock, source: meta.source },
+      metadata: { mock: meta.mock, source: meta.source, backfillPage: 1 },
     },
   });
 
@@ -191,8 +192,11 @@ export async function getConcept2Connection(userId: string) {
 export async function syncConcept2Workouts(
   userId: string,
   athleteId: string,
-  options?: { full?: boolean },
+  options?: { full?: boolean; limit?: number },
 ) {
+  // Amplify SSR ~30s timeout — keep each request small; client loops on hasMore.
+  const limit = Math.min(Math.max(options?.limit ?? 10, 1), 20);
+
   const connection = await prisma.dataConnection.findUnique({
     where: { userId_provider: { userId, provider: 'concept2' } },
   });
@@ -239,27 +243,53 @@ export async function syncConcept2Workouts(
       .filter((id): id is string => !!id),
   );
 
-  // Full sync (reconnect / explicit) ignores lastSyncAt so historical workouts return.
-  // Also ignore a stale/empty cursor (including epoch reset after reconnect).
+  const meta = {
+    ...((connection?.metadata as Record<string, unknown> | null) ?? {}),
+  };
+  let backfillPage =
+    typeof meta.backfillPage === 'number' && meta.backfillPage > 0
+      ? Math.floor(meta.backfillPage)
+      : null;
+  if (options?.full) {
+    backfillPage = 1;
+  }
+
+  // Full sync / reconnect / in-progress backfill ignores lastSyncAt.
   const lastSyncAt = connection?.lastSyncAt ? new Date(connection.lastSyncAt) : null;
   const hasUsableCursor =
     lastSyncAt != null &&
     !Number.isNaN(lastSyncAt.getTime()) &&
     lastSyncAt.getTime() > 0 &&
-    known.size > 0;
-  const updatedAfter = options?.full || !hasUsableCursor ? undefined : lastSyncAt;
+    known.size > 0 &&
+    backfillPage == null;
+  const usingBackfill = options?.full || !hasUsableCursor || backfillPage != null;
+  const page = backfillPage ?? 1;
 
-  const result = await client.syncWorkouts({
-    updatedAfter,
-    knownExternalIds: known,
-  });
+  const { workouts, hasMorePages } = await client.getWorkouts(
+    usingBackfill
+      ? { page, perPage: 50, maxPages: 1 }
+      : { updatedAfter: lastSyncAt!, maxPages: 2, perPage: 50 },
+  );
 
-  const imported: Awaited<ReturnType<typeof createManualWorkout>>[] = [];
+  const candidates = workouts.filter(
+    (w) => !!w.externalId && !known.has(w.externalId),
+  );
+  const batch = candidates.slice(0, limit);
+  const moreOnPage = candidates.length > limit;
+  const skippedDuplicates = workouts.length - candidates.length;
+
+  const activeBlock = await getActiveTrainingBlock(athleteId);
   const importErrors: string[] = [];
+  let importedCount = 0;
 
-  for (const w of result.imported) {
+  for (const w of batch) {
     try {
-      const created = await createManualWorkout({
+      const inBlock =
+        activeBlock &&
+        w.startedAt >= new Date(activeBlock.startDate) &&
+        (!activeBlock.endDate || w.startedAt <= new Date(activeBlock.endDate));
+
+      await createManualWorkout({
         athleteId,
         startedAt: w.startedAt,
         workoutType: 'unknown',
@@ -271,23 +301,15 @@ export async function syncConcept2Workouts(
         averageHeartRate: w.averageHeartRate,
         maxHeartRate: w.maxHeartRate,
         averageStrokeRate: w.averageStrokeRate,
-        splits: w.splits,
+        splits: w.splits?.slice(0, 40),
         source: 'concept2',
         externalId: w.externalId,
-        rawData: w.raw,
-        // Analysis can be slow / flaky — don't block the whole import batch.
+        // Skip bulky raw payloads during bulk sync (keeps Dynamo writes under timeout).
+        trainingBlockId: inBlock ? activeBlock!.id : null,
+        skipBlockResolve: true,
         analyse: false,
       });
-      imported.push(created);
-      // Best-effort analysis after successful create
-      try {
-        const { runPostWorkoutAnalysis } = await import('./analysis.js');
-        await runPostWorkoutAnalysis(created.id);
-      } catch (err) {
-        importErrors.push(
-          `analysis:${w.externalId}:${err instanceof Error ? err.message : 'failed'}`,
-        );
-      }
+      importedCount += 1;
     } catch (err) {
       importErrors.push(
         `import:${w.externalId}:${err instanceof Error ? err.message : 'failed'}`,
@@ -295,20 +317,41 @@ export async function syncConcept2Workouts(
     }
   }
 
+  let nextBackfillPage: number | null = null;
+  let done = false;
+  if (usingBackfill) {
+    if (moreOnPage) {
+      nextBackfillPage = page;
+    } else if (hasMorePages) {
+      nextBackfillPage = page + 1;
+    } else {
+      done = true;
+    }
+  } else {
+    done = !moreOnPage && !hasMorePages;
+  }
+
   if (connection) {
     await prisma.dataConnection.update({
       where: { id: connection.id },
-      data: { lastSyncAt: new Date() },
+      data: {
+        lastSyncAt: done ? new Date() : connection.lastSyncAt ?? new Date(0),
+        metadata: {
+          ...meta,
+          backfillPage: nextBackfillPage,
+        },
+      },
     });
   }
 
   return {
-    importedCount: imported.length,
-    fetchedCount: result.imported.length + result.skippedDuplicateIds.length,
-    skippedDuplicates: result.skippedDuplicateIds.length,
+    importedCount,
+    fetchedCount: workouts.length,
+    skippedDuplicates,
+    hasMore: !done,
+    backfillPage: nextBackfillPage,
     importErrors: importErrors.slice(0, 5),
     mode: shouldUseConcept2Mock() ? 'mock' : 'live',
-    workouts: imported,
   };
 }
 

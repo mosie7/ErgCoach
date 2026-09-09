@@ -61,6 +61,8 @@ export interface Concept2SyncResult {
   imported: Concept2NormalizedWorkout[];
   updated: Concept2NormalizedWorkout[];
   skippedDuplicateIds: string[];
+  /** True when more Concept2 result pages remain beyond this fetch. */
+  hasMorePages?: boolean;
 }
 
 export interface Concept2WebhookResult {
@@ -82,11 +84,14 @@ export interface Concept2Client {
     updatedAfter?: Date;
     page?: number;
     perPage?: number;
-  }): Promise<Concept2NormalizedWorkout[]>;
+    maxPages?: number;
+  }): Promise<{ workouts: Concept2NormalizedWorkout[]; hasMorePages: boolean }>;
   getWorkout(id: string): Promise<Concept2NormalizedWorkout | null>;
   syncWorkouts(options?: {
     updatedAfter?: Date;
     knownExternalIds?: Set<string>;
+    maxPages?: number;
+    perPage?: number;
   }): Promise<Concept2SyncResult>;
   handleWebhook(payload: unknown, headers?: Record<string, string>): Promise<Concept2WebhookResult>;
 }

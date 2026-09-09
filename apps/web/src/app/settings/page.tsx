@@ -70,24 +70,53 @@ function SettingsInner() {
 
   async function syncConcept2(full = false) {
     setSyncStatus(full ? 'Full syncing…' : 'Syncing…');
-    const res = await fetch('/api/concept2/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setSyncStatus(data.error ?? 'Sync failed');
-      return;
+    let totalImported = 0;
+    let totalSkipped = 0;
+    let lastMode = 'live';
+    let lastErrors = 0;
+
+    try {
+      for (let i = 0; i < 50; i++) {
+        const res = await fetch('/api/concept2/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full: full && i === 0, limit: 10 }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setSyncStatus(
+            totalImported > 0
+              ? `Stopped after ${totalImported} imported — ${data.error ?? 'Sync failed'}`
+              : (data.error ?? 'Sync failed'),
+          );
+          refreshStatus();
+          return;
+        }
+        totalImported += Number(data.importedCount ?? 0);
+        totalSkipped += Number(data.skippedDuplicates ?? 0);
+        lastMode = data.mode ?? lastMode;
+        if (Array.isArray(data.importErrors) && data.importErrors.length) {
+          lastErrors += data.importErrors.length;
+        }
+        setSyncStatus(
+          data.hasMore
+            ? `Imported ${totalImported} so far…`
+            : `Imported ${totalImported}, skipped ${totalSkipped} duplicates (${lastMode})`,
+        );
+        if (!data.hasMore) break;
+      }
+      const errHint = lastErrors ? ` · ${lastErrors} item warning(s)` : '';
+      setSyncStatus(
+        `Imported ${totalImported}, skipped ${totalSkipped} duplicates (${lastMode})${errHint}`,
+      );
+      refreshStatus();
+    } catch {
+      setSyncStatus(
+        totalImported > 0
+          ? `Stopped after ${totalImported} imported — network error`
+          : 'Sync failed',
+      );
     }
-    const errHint =
-      Array.isArray(data.importErrors) && data.importErrors.length
-        ? ` · ${data.importErrors.length} item warning(s)`
-        : '';
-    setSyncStatus(
-      `Imported ${data.importedCount} of ${data.fetchedCount ?? data.importedCount} fetched, skipped ${data.skippedDuplicates} duplicates (${data.mode})${errHint}`,
-    );
-    refreshStatus();
   }
 
   async function savePersonalToken() {

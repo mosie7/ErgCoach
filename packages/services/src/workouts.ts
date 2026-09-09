@@ -36,6 +36,8 @@ export interface ManualWorkoutInput {
   externalId?: string | null;
   rawData?: unknown;
   analyse?: boolean;
+  /** Skip date→block lookup (bulk sync already resolved the active block). */
+  skipBlockResolve?: boolean;
 }
 
 export async function createManualWorkout(input: ManualWorkoutInput) {
@@ -45,12 +47,14 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
 
   let trainingBlockId = input.trainingBlockId ?? null;
   let blockAssignment: 'auto' | 'manual' | 'none' = trainingBlockId ? 'manual' : 'none';
-  if (!trainingBlockId && !input.excludeFromAnalysis) {
+  if (!trainingBlockId && !input.excludeFromAnalysis && !input.skipBlockResolve) {
     const block = await resolveBlockForWorkoutDate(input.athleteId, input.startedAt);
     if (block) {
       trainingBlockId = block.id;
       blockAssignment = 'auto';
     }
+  } else if (trainingBlockId && blockAssignment === 'manual' && input.skipBlockResolve) {
+    blockAssignment = 'auto';
   }
 
   const workout = await prisma.workout.create({
