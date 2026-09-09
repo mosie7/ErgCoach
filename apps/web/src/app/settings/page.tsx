@@ -132,13 +132,26 @@ function SettingsInner() {
 
       {params.get('concept2') === 'error' ? (
         <div className="rounded-apple border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800">
-          <p className="font-medium">Concept2 OAuth was rejected by Concept2</p>
-          <p className="mt-1">
-            That “Application Authorization” page means the redirect URI is not registered on your
-            Concept2 developer app
-            {params.get('reason') ? ` (also: ${params.get('reason')})` : ''}.
-          </p>
-          <p className="mt-2">Easiest fix: use a personal access token below (no OAuth app needed).</p>
+          <p className="font-medium">Concept2 connection failed</p>
+          {params.get('reason')?.includes('invalid value') ||
+          params.get('reason')?.includes('metadata') ||
+          params.get('reason')?.includes('Unauthorized') ? (
+            <p className="mt-1">
+              Server save error: {params.get('reason')}. This is an app bug/fix — try again after
+              the latest deploy, or use a personal access token below.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1">
+                That “Application Authorization” page usually means the redirect URI is not
+                registered on your Concept2 developer app
+                {params.get('reason') ? ` (also: ${params.get('reason')})` : ''}.
+              </p>
+              <p className="mt-2">
+                If OAuth still fails after registering the URI, use a personal access token below.
+              </p>
+            </>
+          )}
         </div>
       ) : null}
 

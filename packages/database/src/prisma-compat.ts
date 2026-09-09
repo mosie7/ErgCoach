@@ -135,7 +135,16 @@ function serializeJsonField(value: unknown): unknown {
   if (value === undefined) return undefined;
   if (isJsonNull(value)) return null;
   if (value === null) return null;
-  return value;
+  // AppSync AWSJSON inputs must be JSON strings, not raw objects/arrays.
+  if (typeof value === 'string') {
+    try {
+      JSON.parse(value);
+      return value;
+    } catch {
+      return JSON.stringify(value);
+    }
+  }
+  return JSON.stringify(value);
 }
 
 function coerceDate(value: unknown): Date | null {
