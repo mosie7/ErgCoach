@@ -4,22 +4,32 @@ import { getAmplifyServerUser } from './amplify-server';
 import './amplify-data';
 
 export async function getSessionUser() {
-  const cognito = await getAmplifyServerUser();
-  if (!cognito) return null;
-  return ensureAppUser({
-    sub: cognito.sub,
-    email: cognito.email,
-    displayName: cognito.displayName,
-  });
+  try {
+    const cognito = await getAmplifyServerUser();
+    if (!cognito) return null;
+    return await ensureAppUser({
+      sub: cognito.sub,
+      email: cognito.email,
+      displayName: cognito.displayName,
+    });
+  } catch (error) {
+    console.error('[session] getSessionUser failed', error);
+    return null;
+  }
 }
 
 /** Current signed-in Cognito user + athlete profile. */
 export async function getSessionAthlete() {
-  const user = await getSessionUser();
-  if (!user) return null;
-  const athlete = await getAthleteByUserId(user.id);
-  if (!athlete) return null;
-  return { user, athlete };
+  try {
+    const user = await getSessionUser();
+    if (!user) return null;
+    const athlete = await getAthleteByUserId(user.id);
+    if (!athlete) return null;
+    return { user, athlete };
+  } catch (error) {
+    console.error('[session] getSessionAthlete failed', error);
+    return null;
+  }
 }
 
 export async function requireSessionAthlete() {
