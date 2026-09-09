@@ -14,7 +14,7 @@ export function Metric({
     <div>
       <div className="label">{label}</div>
       <div className="metric mt-1">{value}</div>
-      {sub ? <div className="mt-1 text-xs text-ink-400">{sub}</div> : null}
+      {sub ? <div className="mt-1 text-[12px] text-apple-gray-400">{sub}</div> : null}
     </div>
   );
 }
@@ -22,14 +22,14 @@ export function Metric({
 export function VerdictBadge({ verdict }: { verdict?: string | null }) {
   const tone =
     verdict === 'excellent' || verdict === 'successful'
-      ? 'bg-teal-500/15 text-teal-300'
+      ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
       : verdict === 'partial'
-        ? 'bg-amber-500/15 text-amber-200'
+        ? 'bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
         : verdict === 'poor'
-          ? 'bg-rose-500/15 text-rose-300'
-          : 'bg-ink-700/60 text-ink-300';
+          ? 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+          : 'bg-apple-gray-100 text-apple-gray-500 dark:bg-apple-gray-800 dark:text-apple-gray-400';
   return (
-    <span className={`rounded-md px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${tone}`}>
       {verdict ?? 'unanalysed'}
     </span>
   );
@@ -60,17 +60,19 @@ export function WorkoutRow({
   return (
     <Link
       href={`/workouts/${id}`}
-      className="flex flex-col gap-2 border-b border-ink-800/80 py-3 transition hover:bg-ink-900/40 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-2 border-b border-apple-gray-100 py-4 transition hover:bg-apple-gray-50 dark:border-apple-gray-800 dark:hover:bg-apple-gray-900 sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-ink-50">{title ?? workoutType}</span>
-          <span className="rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[10px] uppercase text-ink-300">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[15px] font-medium tracking-[-0.01em]">
+            {title ?? workoutType}
+          </span>
+          <span className="rounded-full bg-apple-gray-100 px-2 py-0.5 font-mono text-[10px] uppercase text-apple-gray-500 dark:bg-apple-gray-800">
             {workoutType}
           </span>
           <VerdictBadge verdict={verdict} />
         </div>
-        <div className="mt-1 text-xs text-ink-400">
+        <div className="mt-1 text-[12px] text-apple-gray-400">
           {date.toLocaleDateString(undefined, {
             weekday: 'short',
             month: 'short',
@@ -78,7 +80,7 @@ export function WorkoutRow({
           })}
         </div>
       </div>
-      <div className="flex flex-wrap gap-4 font-mono text-sm tabular-nums text-ink-200">
+      <div className="flex flex-wrap gap-4 font-mono text-[13px] tabular-nums text-apple-gray-600 dark:text-apple-gray-300">
         <span>{formatDistance(distanceMeters)}</span>
         <span>{formatDuration(durationSeconds)}</span>
         <span>{formatPace(averagePaceSeconds500m)}</span>

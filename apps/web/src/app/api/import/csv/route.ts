@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { importWorkoutsFromCsv } from '@ergcoach/services';
-import { getDemoAthleteId } from '@/lib/session';
+import { getSessionAthlete } from '@/lib/session';
 
 export async function POST(req: Request) {
   try {
-    const athleteId = await getDemoAthleteId();
-    if (!athleteId) {
-      return NextResponse.json({ error: 'No athlete profile' }, { status: 400 });
+    const session = await getSessionAthlete();
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
     }
     const body = (await req.json()) as { csv?: string };
     if (!body.csv) {
       return NextResponse.json({ error: 'csv required' }, { status: 400 });
     }
-    const created = await importWorkoutsFromCsv(athleteId, body.csv);
+    const created = await importWorkoutsFromCsv(session.athlete.id, body.csv);
     return NextResponse.json({ count: created.length, ids: created.map((w) => w.id) });
   } catch (e) {
     return NextResponse.json(

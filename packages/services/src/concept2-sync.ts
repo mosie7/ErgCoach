@@ -18,8 +18,16 @@ function getConcept2Config(): Concept2OAuthConfig {
   };
 }
 
+/** Live when credentials exist unless CONCEPT2_USE_MOCK=true. */
+export function shouldUseConcept2Mock(): boolean {
+  if (process.env.CONCEPT2_USE_MOCK === 'true') return true;
+  if (process.env.CONCEPT2_USE_MOCK === 'false') return false;
+  const cfg = getConcept2Config();
+  return !cfg.clientId || !cfg.clientSecret;
+}
+
 function encodeToken(tokens: Concept2Tokens): string {
-  // Local-dev encoding only — replace with KMS/envelope encryption in production
+  // MVP encoding — replace with KMS/envelope encryption in hardened production
   return Buffer.from(JSON.stringify(tokens)).toString('base64url');
 }
 
@@ -34,15 +42,14 @@ function decodeToken(enc: string | null | undefined): Concept2Tokens | null {
 
 export function getConcept2AuthUrl(state: string): string {
   const client = createConcept2Client(getConcept2Config(), {
-    useMock: process.env.CONCEPT2_USE_MOCK !== 'false',
+    useMock: shouldUseConcept2Mock(),
   });
   return client.getAuthorizationUrl(state);
 }
 
 export async function completeConcept2OAuth(userId: string, code: string) {
-  const client = createConcept2Client(getConcept2Config(), {
-    useMock: process.env.CONCEPT2_USE_MOCK !== 'false',
-  });
+  const useMock = shouldUseConcept2Mock();
+  const client = createConcept2Client(getConcept2Config(), { useMock });
   const tokens = await client.connect(code);
   return prisma.dataConnection.upsert({
     where: { userId_provider: { userId, provider: 'concept2' } },
@@ -53,14 +60,27 @@ export async function completeConcept2OAuth(userId: string, code: string) {
       refreshTokenEnc: tokens.refreshToken ?? null,
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
-      metadata: { mock: process.env.CONCEPT2_USE_MOCK !== 'false' },
+      metadata: { mock: useMock },
     },
     update: {
       accessTokenEnc: encodeToken(tokens),
       refreshTokenEnc: tokens.refreshToken ?? null,
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
+      metadata: { mock: useMock },
     },
+  });
+}
+
+export async function disconnectConcept2(userId: string) {
+  await prisma.dataConnection.deleteMany({
+    where: { userId, provider: 'concept2' },
+  });
+}
+
+export async function getConcept2Connection(userId: string) {
+  return prisma.dataConnection.findUnique({
+    where: { userId_provider: { userId, provider: 'concept2' } },
   });
 }
 
@@ -68,11 +88,33 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
   const connection = await prisma.dataConnection.findUnique({
     where: { userId_provider: { userId, provider: 'concept2' } },
   });
+  if (!connection?.accessTokenEnc && !shouldUseConcept2Mock()) {
+    throw new Error('Concept2 is not connected for this account');
+  }
+
   const tokens = decodeToken(connection?.accessTokenEnc);
   const client = createConcept2Client(getConcept2Config(), {
-    useMock: process.env.CONCEPT2_USE_MOCK !== 'false' || !tokens,
+    useMock: shouldUseConcept2Mock(),
     tokens,
   });
+
+  // Refresh token if expired
+  if (
+    !shouldUseConcept2Mock() &&
+    tokens?.refreshToken &&
+    tokens.expiresAt &&
+    tokens.expiresAt.getTime() < Date.now() + 60_000
+  ) {
+    const refreshed = await client.refreshToken(tokens);
+    await prisma.dataConnection.update({
+      where: { id: connection!.id },
+      data: {
+        accessTokenEnc: encodeToken(refreshed),
+        refreshTokenEnc: refreshed.refreshToken ?? tokens.refreshToken,
+        tokenExpiresAt: refreshed.expiresAt ?? null,
+      },
+    });
+  }
 
   const existing = await prisma.workout.findMany({
     where: { athleteId, source: 'concept2' },
@@ -118,13 +160,14 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
   return {
     importedCount: imported.length,
     skippedDuplicates: result.skippedDuplicateIds.length,
+    mode: shouldUseConcept2Mock() ? 'mock' : 'live',
     workouts: imported,
   };
 }
 
 export async function handleConcept2Webhook(payload: unknown, headers?: Record<string, string>) {
   const client = createConcept2Client(getConcept2Config(), {
-    useMock: process.env.CONCEPT2_USE_MOCK !== 'false',
+    useMock: shouldUseConcept2Mock(),
   });
   const result = await client.handleWebhook(payload, headers);
   await prisma.webhookEvent.create({

@@ -61,7 +61,7 @@ function BillingInner() {
       <div>
         <p className="label">Billing</p>
         <h1 className="font-display text-3xl font-semibold">Your subscription</h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-1 text-sm text-apple-gray-500">
           Manage Pro Coach access. AI features use ErgCoach’s OpenAI account — included in your
           subscription.
         </p>
@@ -79,19 +79,19 @@ function BillingInner() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="label">Plan</p>
-                <p className="mt-1 capitalize text-ink-50">{access.plan}</p>
+                <p className="mt-1 capitalize text-apple-gray-700 dark:text-white">{access.plan}</p>
               </div>
               <div>
                 <p className="label">Status</p>
-                <p className="mt-1 capitalize text-ink-50">{access.status}</p>
+                <p className="mt-1 capitalize text-apple-gray-700 dark:text-white">{access.status}</p>
               </div>
               <div>
                 <p className="label">AI coach</p>
-                <p className="mt-1 text-ink-50">{access.hasAiCoach ? 'Unlocked' : 'Locked'}</p>
+                <p className="mt-1 text-apple-gray-700 dark:text-white">{access.hasAiCoach ? 'Unlocked' : 'Locked'}</p>
               </div>
               <div>
                 <p className="label">Renews / ends</p>
-                <p className="mt-1 text-ink-50">
+                <p className="mt-1 text-apple-gray-700 dark:text-white">
                   {access.currentPeriodEnd
                     ? new Date(access.currentPeriodEnd).toLocaleDateString()
                     : '—'}
@@ -99,7 +99,7 @@ function BillingInner() {
               </div>
             </div>
             {access.isComplimentary ? (
-              <p className="text-xs text-ink-500">
+              <p className="text-xs text-apple-gray-700 dark:text-white0">
                 Complimentary demo grant (no Stripe customer). Real subscribers manage via Stripe
                 Customer Portal.
               </p>
@@ -109,7 +109,7 @@ function BillingInner() {
             ) : null}
           </>
         ) : (
-          <p className="text-sm text-ink-500">Loading…</p>
+          <p className="text-sm text-apple-gray-700 dark:text-white0">Loading…</p>
         )}
 
         <div className="flex flex-wrap gap-2">
@@ -141,7 +141,7 @@ function BillingInner() {
 
 export default function BillingPage() {
   return (
-    <Suspense fallback={<p className="text-ink-400">Loading billing…</p>}>
+    <Suspense fallback={<p className="text-apple-gray-500">Loading billing…</p>}>
       <BillingInner />
     </Suspense>
   );

@@ -1,14 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import Link from 'next/link';
 
-export default function SettingsPage() {
+type C2Status = {
+  connected: boolean;
+  lastSyncAt: string | null;
+  workoutCount: number;
+  configured: boolean;
+  useMock: boolean;
+  mode: string;
+};
+
+function SettingsInner() {
+  const params = useSearchParams();
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [c2, setC2] = useState<C2Status | null>(null);
   const [csv, setCsv] = useState(
     `date,distance,time,pace,hr,spm,type,title
 2026-09-01T07:00:00.000Z,12000,3096,129,138,18,UT2,CSV UT2 12k`,
   );
+
+  function refreshStatus() {
+    fetch('/api/concept2/status')
+      .then((r) => r.json())
+      .then((data) => setC2(data))
+      .catch(() => undefined);
+  }
+
+  useEffect(() => {
+    refreshStatus();
+  }, []);
 
   async function importCsv() {
     setCsvStatus('Importing…');
@@ -27,70 +52,136 @@ export default function SettingsPage() {
     const data = await res.json();
     setSyncStatus(
       res.ok
-        ? `Imported ${data.importedCount}, skipped ${data.skippedDuplicates} duplicates`
+        ? `Imported ${data.importedCount}, skipped ${data.skippedDuplicates} duplicates (${data.mode})`
         : data.error ?? 'Sync failed',
     );
+    refreshStatus();
+  }
+
+  async function disconnect() {
+    await fetch('/api/concept2/disconnect', { method: 'POST' });
+    refreshStatus();
+    setSyncStatus('Disconnected');
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <p className="label">Settings</p>
-        <h1 className="font-display text-3xl font-semibold">Integrations & import</h1>
+        <h1 className="page-title text-[32px]">Settings</h1>
+        <p className="mt-2 text-[15px] text-apple-gray-500">
+          Connect your Concept2 Logbook and manage imports.
+        </p>
       </div>
 
-      <section className="panel space-y-3 p-5">
-        <h2 className="font-display text-lg font-semibold">Subscription</h2>
-        <p className="text-sm text-ink-400">
-          Pro Coach unlocks AI chat, AI workout reports, and weekly AI reviews. Free keeps logging
-          and objective metrics.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <a className="btn-primary" href="/pricing">
-            View plans
-          </a>
-          <a className="btn-ghost" href="/billing">
-            Manage billing
-          </a>
+      {params.get('concept2') === 'connected' || params.get('onboarding') === 'done' ? (
+        <div className="rounded-apple border border-green-200 bg-green-50 px-4 py-3 text-[14px] text-green-800">
+          {params.get('concept2') === 'connected'
+            ? 'Concept2 connected. Sync your workouts below.'
+            : 'Profile saved. Connect Concept2 to import your Logbook.'}
         </div>
-      </section>
+      ) : null}
 
-      <section className="panel space-y-3 p-5">
-        <h2 className="font-display text-lg font-semibold">Concept2 Logbook</h2>
-        <p className="text-sm text-ink-400">
-          OAuth + sync are implemented behind a Concept2Client adapter. Mock mode is on by default
-          (`CONCEPT2_USE_MOCK=true`). Live endpoints are marked VERIFY against Concept2 docs.
-        </p>
+      <section className="panel space-y-4 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="section-title">Concept2 Logbook</h2>
+            <p className="mt-1 text-[14px] text-apple-gray-500">
+              OAuth connects <strong>your</strong> Logbook to <strong>your</strong> account only.
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+              c2?.connected
+                ? 'bg-green-50 text-green-700'
+                : 'bg-apple-gray-100 text-apple-gray-500'
+            }`}
+          >
+            {c2?.connected ? 'Connected' : 'Not connected'}
+          </span>
+        </div>
+
+        <div className="grid gap-2 text-[13px] text-apple-gray-500 sm:grid-cols-3">
+          <div>
+            Mode · <span className="text-apple-gray-700 dark:text-apple-gray-200">{c2?.mode ?? '…'}</span>
+          </div>
+          <div>
+            Workouts imported ·{' '}
+            <span className="text-apple-gray-700 dark:text-apple-gray-200">
+              {c2?.workoutCount ?? 0}
+            </span>
+          </div>
+          <div>
+            Last sync ·{' '}
+            <span className="text-apple-gray-700 dark:text-apple-gray-200">
+              {c2?.lastSyncAt ? new Date(c2.lastSyncAt).toLocaleString() : 'Never'}
+            </span>
+          </div>
+        </div>
+
+        {!c2?.configured && !c2?.useMock ? (
+          <p className="text-[13px] text-amber-700">
+            Server missing CONCEPT2_CLIENT_ID / CONCEPT2_CLIENT_SECRET. Add them to enable live
+            OAuth.
+          </p>
+        ) : null}
+
         <div className="flex flex-wrap gap-2">
-          <a className="btn-ghost" href="/api/concept2/connect">
-            Connect Concept2 (OAuth)
+          <a className="btn-primary" href="/api/concept2/connect">
+            {c2?.connected ? 'Reconnect Concept2' : 'Connect Concept2'}
           </a>
-          <button className="btn-primary" type="button" onClick={syncConcept2}>
+          <button className="btn-accent" type="button" onClick={syncConcept2} disabled={!c2?.connected && !c2?.useMock}>
             Sync workouts
           </button>
+          {c2?.connected ? (
+            <button className="btn-ghost" type="button" onClick={disconnect}>
+              Disconnect
+            </button>
+          ) : null}
+          <Link href="/onboarding" className="btn-ghost">
+            Edit profile / goal
+          </Link>
         </div>
-        {syncStatus ? <p className="text-sm text-ink-300">{syncStatus}</p> : null}
+        {syncStatus ? <p className="text-[13px] text-apple-gray-500">{syncStatus}</p> : null}
       </section>
 
-      <section className="panel space-y-3 p-5">
-        <h2 className="font-display text-lg font-semibold">CSV import</h2>
-        <p className="text-sm text-ink-400">
-          Generic Concept2-style columns: date, distance, time, pace, hr, spm, type, title.
+      <section className="panel space-y-3 p-6">
+        <h2 className="section-title">Subscription</h2>
+        <p className="text-[14px] text-apple-gray-500">
+          Pro unlocks AI coach chat and AI reports. Free keeps logging and objective metrics.
         </p>
-        <textarea className="input min-h-[140px] font-mono text-xs" value={csv} onChange={(e) => setCsv(e.target.value)} />
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn-primary" href="/pricing">
+            View plans
+          </Link>
+          <Link className="btn-ghost" href="/billing">
+            Manage billing
+          </Link>
+        </div>
+      </section>
+
+      <section className="panel space-y-3 p-6">
+        <h2 className="section-title">CSV import</h2>
+        <p className="text-[14px] text-apple-gray-500">
+          Columns: date, distance, time, pace, hr, spm, type, title.
+        </p>
+        <textarea
+          className="input min-h-[120px] font-mono text-[12px]"
+          value={csv}
+          onChange={(e) => setCsv(e.target.value)}
+        />
         <button className="btn-primary" type="button" onClick={importCsv}>
           Import CSV
         </button>
-        {csvStatus ? <p className="text-sm text-ink-300">{csvStatus}</p> : null}
-      </section>
-
-      <section className="panel space-y-2 p-5 text-sm text-ink-400">
-        <h2 className="font-display text-lg font-semibold text-ink-100">Safety</h2>
-        <p>
-          ErgCoach is training analytics software, not medical software. It does not diagnose
-          conditions. Unusual health-related notes should prompt professional evaluation.
-        </p>
+        {csvStatus ? <p className="text-[13px] text-apple-gray-500">{csvStatus}</p> : null}
       </section>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<p className="text-apple-gray-500">Loading…</p>}>
+      <SettingsInner />
+    </Suspense>
   );
 }

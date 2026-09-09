@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createBillingPortalSession, isStripeConfigured } from '@ergcoach/billing';
-import { getSessionUser, getDemoAthleteId } from '@/lib/session';
-import { prisma } from '@ergcoach/database';
+import { getSessionAthlete } from '@/lib/session';
 
 async function resolveUserId(): Promise<string | null> {
-  const user = await getSessionUser();
-  if (user) return user.id;
-  const athleteId = await getDemoAthleteId();
-  if (!athleteId) return null;
-  const athlete = await prisma.athleteProfile.findUnique({ where: { id: athleteId } });
-  return athlete?.userId ?? null;
+  const session = await getSessionAthlete();
+  return session?.user.id ?? null;
 }
 
 export async function POST() {
