@@ -21,12 +21,17 @@ export async function POST() {
 }
 
 export async function GET() {
-  const user = await getSessionUser();
-  if (!user) {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ authenticated: false }, { status: 401 });
+    }
+    return NextResponse.json({
+      authenticated: true,
+      user: { id: user.id, email: user.email, displayName: user.displayName },
+    });
+  } catch (e) {
+    console.error('[auth/session GET]', e);
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
-  return NextResponse.json({
-    authenticated: true,
-    user: { id: user.id, email: user.email, displayName: user.displayName },
-  });
 }

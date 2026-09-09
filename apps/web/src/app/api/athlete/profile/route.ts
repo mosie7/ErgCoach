@@ -4,6 +4,7 @@ import { EVENT_DISTANCE_METERS, type ProgramEventType } from '@ergcoach/shared';
 import { getSessionAthlete } from '@/lib/session';
 
 export async function PATCH(req: Request) {
+  try {
   const session = await getSessionAthlete();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -65,4 +66,10 @@ export async function PATCH(req: Request) {
   }
 
   return NextResponse.json({ ok: true, athleteId: athlete.id });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Profile update failed' },
+      { status: 500 },
+    );
+  }
 }

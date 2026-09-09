@@ -8,24 +8,31 @@ async function resolveUserId(): Promise<string | null> {
 }
 
 export async function GET() {
-  const userId = await resolveUserId();
-  const access = userId
-    ? await getAccessSnapshot(userId)
-    : {
-        plan: 'free' as const,
-        status: 'inactive' as const,
-        hasAiCoach: false,
-        isComplimentary: false,
-        currentPeriodEnd: null,
-        cancelAtPeriodEnd: false,
-        stripeConfigured: Boolean(
-          process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_PRO_MONTHLY,
-        ),
-        billingEnabled: process.env.BILLING_ENABLED !== 'false',
-      };
+  try {
+    const userId = await resolveUserId();
+    const access = userId
+      ? await getAccessSnapshot(userId)
+      : {
+          plan: 'free' as const,
+          status: 'inactive' as const,
+          hasAiCoach: false,
+          isComplimentary: false,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+          stripeConfigured: Boolean(
+            process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_PRO_MONTHLY,
+          ),
+          billingEnabled: process.env.BILLING_ENABLED !== 'false',
+        };
 
-  return NextResponse.json({
-    access,
-    plans: listPublicPlans(),
-  });
+    return NextResponse.json({
+      access,
+      plans: listPublicPlans(),
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'Failed to load billing status' },
+      { status: 500 },
+    );
+  }
 }
