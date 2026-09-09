@@ -1,10 +1,12 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
-import { postConfirmation } from '../functions/post-confirmation/resource';
+import { postConfirmation } from '../auth/post-confirmation/resource';
 
 /**
  * Amplify Data (AppSync + DynamoDB) schema for ErgCoach.
  * Nested workout payloads (splits/strokes/feedback/analysis) are stored as JSON
  * to avoid high-cardinality relational fan-out on DynamoDB.
+ *
+ * Note: allow.resource() is only valid on the schema object (not per-model).
  */
 const schema = a
   .schema({
@@ -23,7 +25,6 @@ const schema = a
       .authorization((allow) => [
         allow.owner().to(['read', 'update']),
         allow.authenticated('identityPool').to(['read', 'create', 'update']),
-        allow.resource(postConfirmation),
       ]),
 
     Subscription: a
@@ -48,7 +49,6 @@ const schema = a
       .authorization((allow) => [
         allow.owner().to(['read']),
         allow.authenticated('identityPool').to(['read', 'create', 'update']),
-        allow.resource(postConfirmation),
       ]),
 
     AthleteProfile: a
@@ -80,7 +80,6 @@ const schema = a
       .authorization((allow) => [
         allow.owner(),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
-        allow.resource(postConfirmation),
       ]),
 
     Goal: a

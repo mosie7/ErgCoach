@@ -1,7 +1,7 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
-import { postConfirmation } from './functions/post-confirmation/resource';
+import { postConfirmation } from './auth/post-confirmation/resource';
 
 /**
  * Amplify Gen 2 backend: Cognito auth + AppSync/DynamoDB data.

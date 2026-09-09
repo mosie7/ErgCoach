@@ -1,5 +1,5 @@
 import { defineAuth } from '@aws-amplify/backend';
-import { postConfirmation } from '../functions/post-confirmation/resource';
+import { postConfirmation } from './post-confirmation/resource';
 
 /**
  * Amazon Cognito email/password auth for ErgCoach.
