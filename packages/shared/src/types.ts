@@ -1,13 +1,34 @@
 export type Sport = 'rower' | 'bikeerg' | 'skierg' | 'strength' | 'other';
 
 export type EventType =
-  | '2k'
-  | '5k'
-  | '10k'
+  | 'two_k'
+  | 'five_k'
+  | 'ten_k'
   | 'half_marathon'
   | 'marathon'
+  | 'hundred_k'
   | 'general_endurance'
   | 'custom';
+
+/** Race / program distances used by Training Programs. */
+export type ProgramEventType =
+  | 'two_k'
+  | 'five_k'
+  | 'ten_k'
+  | 'half_marathon'
+  | 'marathon'
+  | 'hundred_k';
+
+export const EVENT_DISTANCE_METERS: Record<ProgramEventType, number> = {
+  two_k: 2000,
+  five_k: 5000,
+  ten_k: 10000,
+  half_marathon: 21097,
+  marathon: 42195,
+  hundred_k: 100000,
+};
+
+export const MARATHON_DISTANCE_METERS = EVENT_DISTANCE_METERS.marathon;
 
 export type GoalStatus = 'active' | 'completed' | 'abandoned' | 'paused';
 
@@ -123,7 +144,6 @@ export interface WeeklyVolumeSummary {
   intensityBreakdown: Partial<Record<WorkoutClassification, number>>;
 }
 
-export const MARATHON_DISTANCE_METERS = 42195;
 export const STANDARD_SPLIT_METERS = 500;
 
 /** Concept2 pace/power relationship constants (public Formula). */
