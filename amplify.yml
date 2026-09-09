@@ -35,14 +35,24 @@ applications:
             - export PATH="$PWD/node_modules/.bin:$PATH"
             - env | grep -e NEXT_PUBLIC_ -e OPENAI_ -e CONCEPT2_ -e STRIPE_ -e BILLING_ >> apps/web/.env.production || true
             - pnpm --filter @ergcoach/web build
-            - ls -la apps/web/.next | head -20
-            - du -sh apps/web/.next
+            # Amplify SSR requires a real next install under the app root (pnpm symlinks are not enough).
+            - mkdir -p apps/web/node_modules
+            - |
+              if [ ! -f apps/web/node_modules/next/package.json ]; then
+                if [ -d node_modules/next ]; then
+                  cp -RL node_modules/next apps/web/node_modules/next
+                else
+                  NEXT_SRC=$(find node_modules/.pnpm -type d -path '*/node_modules/next' | head -1)
+                  cp -RL "$NEXT_SRC" apps/web/node_modules/next
+                fi
+              fi
+            - test -f apps/web/node_modules/next/package.json
+            - ls -la apps/web/node_modules/next | head -5
+            - du -sh apps/web/.next apps/web/node_modules/next
       artifacts:
         baseDirectory: apps/web/.next
         files:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
           - apps/web/.next/cache/**/*
-          - .pnpm-store/**/*
