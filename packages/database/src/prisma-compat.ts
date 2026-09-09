@@ -560,7 +560,7 @@ function createDelegate(modelName: string, amplifyName: string) {
       } else if (where.userId != null && amplifyName === 'AthleteProfile') {
         const rows = await listAll(model(), { userId: { eq: String(where.userId) } });
         row = coerceRecord(rows[0] ?? null);
-      } else if (where.userId != null && amplifyName === 'Subscription') {
+      } else if (where.userId != null && amplifyName === 'BillingSubscription') {
         const rows = await listAll(model(), { userId: { eq: String(where.userId) } });
         row = coerceRecord(rows[0] ?? null);
       } else if (where.email != null && amplifyName === 'User') {
@@ -694,7 +694,7 @@ function createDelegate(modelName: string, amplifyName: string) {
           );
         }
         if (subscriptionCreate) {
-          await getModel('Subscription').create(
+          await getModel('BillingSubscription').create(
             serializeRecord({ id: randomUUID(), userId: user.id, ...subscriptionCreate }),
           );
         }
@@ -826,7 +826,7 @@ async function hydrateTrainingBlock(row: Record<string, unknown>, include?: Reco
 }
 
 const userDelegate = createDelegate('User', 'User');
-const subscriptionDelegate = createDelegate('Subscription', 'Subscription');
+const subscriptionDelegate = createDelegate('subscription', 'BillingSubscription');
 const athleteProfileDelegate = createDelegate('AthleteProfile', 'AthleteProfile');
 const goalDelegate = createDelegate('Goal', 'Goal');
 const trainingPlanDelegate = createDelegate('TrainingPlan', 'TrainingPlan');

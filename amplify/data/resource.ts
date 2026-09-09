@@ -18,7 +18,7 @@ const schema = a
         authProvider: a.string().default('cognito'),
         externalAuthId: a.string(),
         athleteProfile: a.hasOne('AthleteProfile', 'userId'),
-        subscription: a.hasOne('Subscription', 'userId'),
+        subscription: a.hasOne('BillingSubscription', 'userId'),
         dataConnections: a.hasMany('DataConnection', 'userId'),
       })
       .identifier(['id'])
@@ -27,7 +27,8 @@ const schema = a
         allow.authenticated('identityPool').to(['read', 'create', 'update']),
       ]),
 
-    Subscription: a
+    // Named BillingSubscription — AppSync reserves the GraphQL type name "Subscription"
+    BillingSubscription: a
       .model({
         userId: a.id().required(),
         plan: a.string().default('free'),

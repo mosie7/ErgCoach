@@ -45,7 +45,7 @@ export const handler: PostConfirmationTriggerHandler = async (event) => {
     owner: sub,
   });
 
-  await client.models.Subscription.create({
+  await client.models.BillingSubscription.create({
     userId: sub,
     plan: 'free',
     status: 'inactive',

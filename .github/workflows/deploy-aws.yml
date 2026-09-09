@@ -1,5 +1,6 @@
 name: Deploy to AWS
 
+# Legacy App Runner/RDS deploy — manual only. Amplify Hosting is the primary path.
 on:
   workflow_dispatch:
     inputs:
@@ -16,14 +17,6 @@ on:
         required: true
         default: false
         type: boolean
-  push:
-    branches: [main]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'Dockerfile'
-      - 'infra/**'
-      - '.github/workflows/deploy-aws.yml'
 
 permissions:
   contents: read
