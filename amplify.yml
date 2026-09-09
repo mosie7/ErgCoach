@@ -6,6 +6,8 @@ backend:
         - npm install -g pnpm@10.33.3
         - pnpm install --frozen-lockfile
         - pnpm rebuild esbuild
+        - export PATH="$PWD/node_modules/.bin:$PATH"
+        - which esbuild && esbuild --version
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
@@ -14,6 +16,7 @@ frontend:
         - npm install -g pnpm@10.33.3
         - pnpm install --frozen-lockfile
         - pnpm rebuild esbuild
+        - export PATH="$PWD/node_modules/.bin:$PATH"
     build:
       commands:
         - pnpm --filter @ergcoach/shared build
