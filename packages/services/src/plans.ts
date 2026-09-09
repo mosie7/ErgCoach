@@ -28,6 +28,13 @@ export interface StartTrainingProgramInput {
 }
 
 export async function startTrainingProgram(input: StartTrainingProgramInput) {
+  const programMeta = getTrainingProgram(input.eventType);
+  if (!programMeta.available) {
+    throw new Error(
+      `No public Concept2 plan for ${programMeta.shortLabel} yet. Choose 2k, 5k, half marathon, or marathon.`,
+    );
+  }
+
   const generated = generateProgramPlan({
     eventType: input.eventType,
     startDate: input.startDate,
@@ -38,12 +45,22 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
   const program = generated.program;
   const targetDistance = program.distanceMeters;
   const targetPace = input.targetPaceSeconds500m ?? null;
+  // Goal target time uses race pace only when paceReference is race; for 5k-referenced
+  // endurance plans, leave targetTime unset unless explicitly provided.
   const targetTime =
     input.targetTimeSeconds != null
       ? Number(input.targetTimeSeconds)
-      : targetPace != null
+      : targetPace != null && program.paceReference === 'race'
         ? Math.round((targetDistance / 500) * targetPace)
         : null;
+
+  const notes = [
+    `Started ${generated.name}`,
+    program.source?.attribution,
+    ...(program.source?.adaptations ?? []),
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return prisma.$transaction(async (tx) => {
     await tx.goal.updateMany({
@@ -61,7 +78,7 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
         targetPaceSeconds500m: targetPace,
         targetTimeSeconds: targetTime,
         status: 'active',
-        notes: `Started ${program.name} training program`,
+        notes,
       },
     });
 
@@ -72,7 +89,13 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
         name: generated.name,
         startDate: generated.startDate,
         endDate: generated.endDate,
-        notes: program.summary,
+        notes: [
+          program.summary,
+          program.source?.url ? `Source: ${program.source.url}` : null,
+          ...(program.source?.adaptations ?? []),
+        ]
+          .filter(Boolean)
+          .join('\n'),
         plannedWorkouts: {
           create: generated.sessions.map((session) => ({
             scheduledDate: session.scheduledDate,
