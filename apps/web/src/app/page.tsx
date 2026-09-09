@@ -1,65 +1,67 @@
 import { getDashboardData } from '@ergcoach/services';
 import { formatDistance, formatDuration, formatPace } from '@ergcoach/shared';
-import { getDemoAthleteId } from '@/lib/session';
+import { requireSessionAthlete } from '@/lib/session';
 import { Metric, WorkoutRow } from '@/components/ui';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const athleteId = await getDemoAthleteId();
-  if (!athleteId) {
-    return (
-      <div className="panel p-8">
-        <h1 className="font-display text-2xl font-semibold">Welcome to ErgCoach</h1>
-        <p className="mt-2 max-w-xl text-ink-300">
-          No athlete data found. Run database migrations and seed to load the synthetic marathon
-          athlete, then refresh.
-        </p>
-        <pre className="mt-4 overflow-x-auto rounded-lg bg-ink-950 p-4 text-xs text-ink-300">
-          {`pnpm db:migrate:dev\npnpm db:seed`}
-        </pre>
-        <Link href="/login" className="btn-primary mt-4">
-          Sign in
-        </Link>
-      </div>
-    );
-  }
-
-  const data = await getDashboardData(athleteId);
+  const { athlete, user } = await requireSessionAthlete();
+  const data = await getDashboardData(athlete.id);
   const readiness = data.readiness;
   const projection = data.projection;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="label">Athlete dashboard</p>
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-ink-50">
-            {data.athlete.user.displayName}
-          </h1>
-          <p className="mt-1 text-sm text-ink-400">
-            Evidence-based Concept2 coaching — metrics first, AI interpretation second.
+          <p className="label">Dashboard</p>
+          <h1 className="page-title mt-1">{user.displayName}</h1>
+          <p className="mt-2 max-w-xl text-[15px] text-apple-gray-500">
+            Metrics first. AI coaching when you need interpretation.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/workouts/new" className="btn-primary">
             Log workout
           </Link>
-          <Link href="/coach" className="btn-ghost">
+          <Link href="/settings" className="btn-ghost">
+            Connect Concept2
+          </Link>
+          <Link href="/coach" className="btn-accent">
             Ask coach
           </Link>
         </div>
       </div>
 
+      {!data.goal ? (
+        <div className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="section-title">Finish setup</p>
+            <p className="mt-1 text-[14px] text-apple-gray-500">
+              Add your goal and connect your Concept2 Logbook to import workouts.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/onboarding" className="btn-primary">
+              Set goal
+            </Link>
+            <Link href="/settings" className="btn-ghost">
+              Concept2
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
-        <section className="panel p-5 lg:col-span-1">
+        <section className="panel p-5">
           <p className="label">Current goal</p>
-          <h2 className="mt-2 font-display text-xl font-semibold">
-            {data.goal ? 'Concept2 Marathon' : 'No active goal'}
+          <h2 className="section-title mt-2">
+            {data.goal ? String(data.goal.eventType).replace('_', ' ') : 'No active goal'}
           </h2>
           {data.goal ? (
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-5 grid grid-cols-2 gap-4">
               <Metric
                 label="Target date"
                 value={
@@ -85,40 +87,25 @@ export default async function DashboardPage() {
           ) : null}
         </section>
 
-        <section className="panel p-5 lg:col-span-1">
-          <p className="label">Current readiness</p>
+        <section className="panel p-5">
+          <p className="label">Readiness</p>
           <div className="mt-2 flex items-end gap-3">
-            <span className="font-display text-5xl font-semibold tabular-nums text-accent-soft">
+            <span className="font-display text-[56px] font-semibold tracking-[-0.05em] tabular-nums">
               {readiness.score}
             </span>
-            <div className="pb-1 text-sm text-ink-300">
+            <div className="pb-2 text-[13px] text-apple-gray-500">
               <div className="capitalize">{readiness.confidence} confidence</div>
-              <div className="text-xs text-ink-500">Explainable heuristic — not a VO₂ model</div>
             </div>
           </div>
-          <p className="mt-4 text-sm text-ink-300">
-            <span className="text-ink-400">Primary limiter: </span>
+          <p className="mt-4 text-[14px] text-apple-gray-600 dark:text-apple-gray-300">
+            <span className="text-apple-gray-400">Limiter · </span>
             {readiness.primaryLimiter}
           </p>
-          <ul className="mt-3 space-y-1.5 text-sm text-ink-300">
-            {readiness.positiveEvidence.slice(0, 2).map((e) => (
-              <li key={e} className="flex gap-2">
-                <span className="text-teal-400">+</span>
-                <span>{e}</span>
-              </li>
-            ))}
-            {readiness.limitingEvidence.slice(0, 1).map((e) => (
-              <li key={e} className="flex gap-2">
-                <span className="text-amber-400">!</span>
-                <span>{e}</span>
-              </li>
-            ))}
-          </ul>
         </section>
 
-        <section className="panel p-5 lg:col-span-1">
+        <section className="panel p-5">
           <p className="label">This week</p>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-5 grid grid-cols-2 gap-4">
             <Metric label="Metres" value={formatDistance(data.thisWeek.totalMeters)} />
             <Metric label="Duration" value={formatDuration(data.thisWeek.totalDurationSeconds)} />
             <Metric label="Sessions" value={String(data.thisWeek.sessionCount)} />
@@ -128,53 +115,30 @@ export default async function DashboardPage() {
               sub={`${data.rolling28.sessionCount} sessions`}
             />
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {Object.entries(data.thisWeek.intensityBreakdown).map(([k, v]) => (
-              <span
-                key={k}
-                className="rounded-md bg-ink-800 px-2 py-1 font-mono text-[11px] text-ink-300"
-              >
-                {k} {formatDistance(v)}
-              </span>
-            ))}
-          </div>
         </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel p-5">
-          <div className="flex items-center justify-between">
-            <p className="label">Progress</p>
-          </div>
+          <p className="label">Progress</p>
           <div className="mt-4 space-y-3">
             {[
               ['UT2 efficiency', data.trends.ut2Efficiency],
               ['UT1 efficiency', data.trends.ut1Efficiency],
-              ['Benchmark trend', data.trends.benchmarkTrend],
+              ['Benchmark', data.trends.benchmarkTrend],
               ['Long-row durability', data.trends.longRowDurability],
             ].map(([label, trend]) => {
-              const t = trend as {
-                direction: string;
-                summary: string;
-              };
+              const t = trend as { direction: string; summary: string };
               return (
                 <div
                   key={label as string}
-                  className="flex items-start justify-between gap-3 border-b border-ink-800/70 pb-3"
+                  className="flex items-start justify-between gap-3 border-b border-apple-gray-100 pb-3 dark:border-apple-gray-800"
                 >
                   <div>
-                    <div className="text-sm font-medium text-ink-100">{label as string}</div>
-                    <div className="mt-0.5 text-xs text-ink-400">{t.summary}</div>
+                    <div className="text-[14px] font-medium">{label as string}</div>
+                    <div className="mt-0.5 text-[12px] text-apple-gray-400">{t.summary}</div>
                   </div>
-                  <span
-                    className={`rounded-md px-2 py-0.5 text-xs capitalize ${
-                      t.direction === 'improving'
-                        ? 'bg-teal-500/15 text-teal-300'
-                        : t.direction === 'declining'
-                          ? 'bg-rose-500/15 text-rose-300'
-                          : 'bg-ink-800 text-ink-300'
-                    }`}
-                  >
+                  <span className="rounded-full bg-apple-gray-100 px-2 py-0.5 text-[11px] capitalize text-apple-gray-600 dark:bg-apple-gray-800 dark:text-apple-gray-300">
                     {t.direction.replace('_', ' ')}
                   </span>
                 </div>
@@ -185,77 +149,37 @@ export default async function DashboardPage() {
 
         <section className="panel p-5">
           <p className="label">Goal projection</p>
-          <h2 className="mt-2 font-display text-lg font-semibold text-ink-50">
-            Estimated marathon pace capability
-          </h2>
+          <h2 className="section-title mt-2">Estimated race pace</h2>
           {projection ? (
             <>
-              <div className="mt-4 font-mono text-3xl tabular-nums text-accent-soft">
+              <div className="mt-4 font-mono text-[28px] tracking-[-0.02em] tabular-nums">
                 {projection.estimatedPaceRange.lowFormatted}–{projection.estimatedPaceRange.highFormatted}
               </div>
-              <div className="mt-2 text-sm text-ink-300">
+              <div className="mt-2 text-[13px] text-apple-gray-500">
                 Target {projection.targetPaceFormatted} · {projection.confidence} confidence
-              </div>
-              <p className="mt-4 text-sm text-ink-300">
-                <span className="text-ink-400">Primary limiter: </span>
-                {projection.primaryLimiter}
-              </p>
-              <div className="mt-3">
-                <p className="label">Evidence needed</p>
-                <ul className="mt-2 space-y-1 text-sm text-ink-300">
-                  {(projection.evidenceNeeded.length
-                    ? projection.evidenceNeeded
-                    : ['Continue accumulating long-row and UT1 evidence']
-                  )
-                    .slice(0, 4)
-                    .map((e) => (
-                      <li key={e}>• {e}</li>
-                    ))}
-                </ul>
               </div>
             </>
           ) : (
-            <p className="mt-4 text-sm text-ink-400">
-              Not enough evidence yet for a pace projection.
+            <p className="mt-4 text-[14px] text-apple-gray-500">
+              Import or log workouts to unlock a pace projection.
             </p>
           )}
-          <p className="mt-4 text-xs text-ink-500">
-            Early MVP estimate — explainable heuristic, not physiological precision.
-          </p>
         </section>
       </div>
 
-      <section className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="label">AI coach chat</p>
-          <h2 className="mt-1 font-display text-xl font-semibold text-ink-50">
-            Ask about progress, execution, or marathon pace realism
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-ink-400">
-            Included with <Link href="/pricing" className="text-accent-soft hover:underline">Pro Coach</Link>.
-            The coach retrieves your goal, recent workouts, and trends — it does not dump the whole
-            database into the model.
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Link href="/coach" className="btn-primary">
-            Open coach chat
-          </Link>
-          <Link href="/pricing" className="btn-ghost">
-            Plans
-          </Link>
-        </div>
-      </section>
-
-      <section className="panel p-5">
-        <div className="flex items-center justify-between">
+      <section className="panel px-5">
+        <div className="flex items-center justify-between py-4">
           <p className="label">Recent training</p>
-          <Link href="/workouts" className="text-sm text-accent-soft hover:underline">
+          <Link href="/workouts" className="text-[13px] text-apple-blue hover:underline">
             View all
           </Link>
         </div>
-        <div className="mt-2">
-          {data.recentWorkouts.map((w) => {
+        {data.recentWorkouts.length === 0 ? (
+          <p className="pb-6 text-[14px] text-apple-gray-500">
+            No workouts yet. Connect Concept2 or log one manually.
+          </p>
+        ) : (
+          data.recentWorkouts.map((w) => {
             const ai = w.analysis?.aiAnalysis as { sessionVerdict?: string } | null;
             return (
               <WorkoutRow
@@ -271,8 +195,8 @@ export default async function DashboardPage() {
                 verdict={ai?.sessionVerdict ?? w.analysis?.sessionVerdict}
               />
             );
-          })}
-        </div>
+          })
+        )}
       </section>
     </div>
   );

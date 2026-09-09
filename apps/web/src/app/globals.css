@@ -3,17 +3,28 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0b1116;
-  --bg-elevated: #121a21;
-  --bg-panel: #162028;
-  --border: rgba(151, 180, 194, 0.16);
-  --text: #e8eef2;
-  --text-muted: #8aa0ad;
-  --accent: #e85d04;
-  --accent-2: #f48c06;
-  --good: #2a9d8f;
-  --warn: #e9c46a;
-  --bad: #e76f51;
+  --bg: #ffffff;
+  --bg-secondary: #f5f5f7;
+  --bg-elevated: #ffffff;
+  --border: #d2d2d7;
+  --text: #1d1d1f;
+  --text-muted: #6e6e73;
+  --accent: #0071e3;
+  --accent-hover: #0077ed;
+  --good: #34c759;
+  --warn: #ff9f0a;
+  --bad: #ff3b30;
+}
+
+.dark {
+  --bg: #000000;
+  --bg-secondary: #1c1c1e;
+  --bg-elevated: #1c1c1e;
+  --border: #38383a;
+  --text: #f5f5f7;
+  --text-muted: #98989d;
+  --accent: #0a84ff;
+  --accent-hover: #409cff;
 }
 
 html,
@@ -22,34 +33,75 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(232, 93, 4, 0.12), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(42, 157, 143, 0.1), transparent 50%),
-    linear-gradient(180deg, #0b1116 0%, #0f161c 40%, #0b1116 100%);
+  background: var(--bg);
   color: var(--text);
-  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer components {
   .panel {
-    @apply rounded-xl border border-ink-700/60 bg-surface-raised/90 shadow-panel backdrop-blur;
+    @apply rounded-apple border border-apple-gray-200 bg-white shadow-apple;
   }
+  .dark .panel {
+    @apply border-apple-gray-600 bg-apple-gray-800 shadow-none;
+  }
+
   .label {
-    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400;
+    @apply text-[12px] font-medium tracking-[-0.01em] text-apple-gray-500;
   }
+  .dark .label {
+    @apply text-apple-gray-400;
+  }
+
   .metric {
-    @apply font-mono text-2xl tabular-nums text-ink-50;
+    @apply font-display text-[28px] font-semibold tracking-[-0.03em] tabular-nums text-apple-gray-700;
   }
+  .dark .metric {
+    @apply text-apple-gray-50;
+  }
+
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-[14px] font-medium tracking-[-0.01em] transition;
   }
+
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-soft;
+    @apply btn bg-apple-gray-700 text-white hover:bg-black;
   }
+  .dark .btn-primary {
+    @apply bg-white text-black hover:bg-apple-gray-100;
+  }
+
+  .btn-accent {
+    @apply btn bg-apple-blue text-white hover:bg-apple-blue-hover;
+  }
+
   .btn-ghost {
-    @apply btn border border-ink-600/80 bg-transparent text-ink-100 hover:bg-ink-800/80;
+    @apply btn border border-apple-gray-300 bg-transparent text-apple-gray-700 hover:bg-apple-gray-100;
   }
+  .dark .btn-ghost {
+    @apply border-apple-gray-600 text-apple-gray-100 hover:bg-apple-gray-800;
+  }
+
   .input {
-    @apply w-full rounded-lg border border-ink-600/70 bg-ink-950/60 px-3 py-2 text-sm text-ink-50 outline-none ring-accent/40 placeholder:text-ink-500 focus:ring-2;
+    @apply w-full rounded-apple border border-apple-gray-300 bg-white px-3.5 py-2.5 text-[15px] text-apple-gray-700 outline-none transition placeholder:text-apple-gray-400 focus:border-apple-blue focus:ring-2 focus:ring-apple-blue/20;
+  }
+  .dark .input {
+    @apply border-apple-gray-600 bg-apple-gray-900 text-apple-gray-50 placeholder:text-apple-gray-400 focus:border-apple-blue;
+  }
+
+  .page-title {
+    @apply font-display text-[40px] font-semibold tracking-[-0.04em] text-apple-gray-700;
+  }
+  .dark .page-title {
+    @apply text-white;
+  }
+
+  .section-title {
+    @apply font-display text-[21px] font-semibold tracking-[-0.02em] text-apple-gray-700;
+  }
+  .dark .section-title {
+    @apply text-apple-gray-50;
   }
 }

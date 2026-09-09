@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createManualWorkout } from '@ergcoach/services';
-import { getDemoAthleteId } from '@/lib/session';
+import { getSessionAthlete } from '@/lib/session';
 import type { WorkoutClassification } from '@ergcoach/database';
 
 export async function POST(req: Request) {
   try {
-    const athleteId = await getDemoAthleteId();
-    if (!athleteId) {
-      return NextResponse.json({ error: 'No athlete profile. Seed the database.' }, { status: 400 });
+    const session = await getSessionAthlete();
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in required' }, { status: 401 });
     }
     const body = await req.json();
     const workout = await createManualWorkout({
-      athleteId,
+      athleteId: session.athlete.id,
       startedAt: new Date(body.startedAt),
       workoutType: body.workoutType as WorkoutClassification,
       title: body.title,

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { getAuthProvider, getAthleteByUserId } from '@ergcoach/services';
 
 export async function getSessionUser() {
@@ -8,7 +9,8 @@ export async function getSessionUser() {
   return getAuthProvider().getUserFromSession(token);
 }
 
-export async function requireAthlete() {
+/** Current signed-in user + athlete profile. No demo/seed fallback. */
+export async function getSessionAthlete() {
   const user = await getSessionUser();
   if (!user) return null;
   const athlete = await getAthleteByUserId(user.id);
@@ -16,14 +18,15 @@ export async function requireAthlete() {
   return { user, athlete };
 }
 
-export async function getDemoAthleteId(): Promise<string | null> {
-  const session = await requireAthlete();
-  if (session) return session.athlete.id;
-  // Fallback for local demo: first synthetic athlete
-  const { prisma } = await import('@ergcoach/database');
-  const athlete = await prisma.athleteProfile.findFirst({
-    where: { isSyntheticSeed: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  return athlete?.id ?? null;
+export async function requireSessionAthlete() {
+  const session = await getSessionAthlete();
+  if (!session) {
+    redirect('/login');
+  }
+  return session;
+}
+
+export async function getSessionToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get('ergcoach_session')?.value ?? null;
 }

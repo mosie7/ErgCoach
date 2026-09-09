@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { prisma, type User } from '@ergcoach/database';
 
 /**
- * Auth abstraction — local SHA-256 for development.
+ * Auth abstraction — local SHA-256 for MVP.
  * Swap implementation for Cognito/Auth0/Clerk without changing callers.
  */
 export interface AuthProvider {
@@ -30,12 +30,34 @@ export class LocalAuthProvider implements AuthProvider {
     password: string;
     displayName: string;
   }): Promise<User> {
+    const existing = await prisma.user.findUnique({
+      where: { email: input.email.toLowerCase() },
+    });
+    if (existing) {
+      throw new Error('An account with this email already exists');
+    }
+    if (input.password.length < 8) {
+      throw new Error('Password must be at least 8 characters');
+    }
+
     return prisma.user.create({
       data: {
         email: input.email.toLowerCase(),
-        displayName: input.displayName,
+        displayName: input.displayName.trim(),
         passwordHash: hashPassword(input.password),
         authProvider: 'local',
+        athleteProfile: {
+          create: {
+            preferredUnits: 'metric',
+            hrZoneMethod: 'lthr',
+          },
+        },
+        subscription: {
+          create: {
+            plan: 'free',
+            status: 'inactive',
+          },
+        },
       },
     });
   }
@@ -79,8 +101,17 @@ let authSingleton: AuthProvider | null = null;
 
 export function getAuthProvider(): AuthProvider {
   if (!authSingleton) {
-    // Future: switch on AUTH_PROVIDER env for cognito/auth0/clerk
     authSingleton = new LocalAuthProvider();
   }
   return authSingleton;
+}
+
+export async function registerAndLogin(input: {
+  email: string;
+  password: string;
+  displayName: string;
+}): Promise<{ user: User; sessionToken: string }> {
+  const auth = getAuthProvider();
+  await auth.register(input);
+  return auth.login(input.email, input.password);
 }

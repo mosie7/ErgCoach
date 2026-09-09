@@ -81,13 +81,13 @@ export default function CoachPage() {
         <div>
           <p className="label">AI coach</p>
           <h1 className="font-display text-3xl font-semibold">Pro feature</h1>
-          <p className="mt-2 text-sm text-ink-400">
+          <p className="mt-2 text-sm text-apple-gray-500">
             Coach chat is included in the Pro Coach subscription. Free users keep workout logging
             and objective metrics.
           </p>
         </div>
         <section className="panel space-y-4 p-6">
-          <p className="text-ink-200">
+          <p className="text-apple-gray-600 dark:text-apple-gray-200">
             Upgrade to ask questions about progress, marathon pace realism, and session execution —
             backed by your training evidence.
           </p>
@@ -109,7 +109,7 @@ export default function CoachPage() {
       <div>
         <p className="label">AI coach</p>
         <h1 className="font-display text-3xl font-semibold">Ask your coach</h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-1 text-sm text-apple-gray-500">
           Questions are answered from retrieved training context — not the entire database. Included
           with Pro.
         </p>
@@ -120,7 +120,7 @@ export default function CoachPage() {
           <button
             key={s}
             type="button"
-            className="rounded-lg border border-ink-700 bg-ink-900/50 px-3 py-1.5 text-left text-xs text-ink-300 hover:border-ink-500 hover:text-ink-100"
+            className="rounded-lg border border-apple-gray-300 dark:border-apple-gray-600 bg-apple-gray-50 dark:bg-apple-gray-900 px-3 py-1.5 text-left text-xs text-apple-gray-500 hover:border-apple-gray-400 hover:text-apple-gray-700 dark:text-apple-gray-100"
             onClick={() => setQuestion(s)}
           >
             {s}
@@ -131,28 +131,28 @@ export default function CoachPage() {
       <section className="panel flex min-h-[420px] flex-col">
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {messages.length === 0 ? (
-            <p className="text-sm text-ink-500">Ask about progress, execution, or goal realism.</p>
+            <p className="text-sm text-apple-gray-700 dark:text-white0">Ask about progress, execution, or goal realism.</p>
           ) : null}
           {messages.map((m, i) => (
             <div
               key={`${m.role}-${i}`}
               className={`max-w-[90%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                 m.role === 'user'
-                  ? 'ml-auto bg-accent/20 text-ink-50'
-                  : 'bg-ink-800/80 text-ink-200'
+                  ? 'ml-auto bg-apple-gray-100 dark:bg-apple-gray-800 text-apple-gray-700 dark:text-white'
+                  : 'bg-apple-gray-100 dark:bg-apple-gray-800/80 text-apple-gray-600 dark:text-apple-gray-200'
               }`}
             >
               {m.content}
             </div>
           ))}
-          {pending ? <p className="text-sm text-ink-500">Retrieving evidence…</p> : null}
+          {pending ? <p className="text-sm text-apple-gray-700 dark:text-white0">Retrieving evidence…</p> : null}
         </div>
         {tools.length ? (
-          <div className="border-t border-ink-800 px-4 py-2 text-[11px] text-ink-500">
+          <div className="border-t border-apple-gray-200 dark:border-apple-gray-800 px-4 py-2 text-[11px] text-apple-gray-700 dark:text-white0">
             Tools used: {tools.join(', ')}
           </div>
         ) : null}
-        <form onSubmit={onSubmit} className="flex gap-2 border-t border-ink-800 p-3">
+        <form onSubmit={onSubmit} className="flex gap-2 border-t border-apple-gray-200 dark:border-apple-gray-800 p-3">
           <input
             className="input"
             value={question}

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { completeConcept2OAuth } from '@ergcoach/services';
-import { getSessionUser, getDemoAthleteId } from '@/lib/session';
+import { completeConcept2OAuth, shouldUseConcept2Mock } from '@ergcoach/services';
+import { getSessionAthlete } from '@/lib/session';
 import { cookies } from 'next/headers';
-import { prisma } from '@ergcoach/database';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -10,27 +9,25 @@ export async function GET(req: Request) {
   const state = url.searchParams.get('state');
   const cookieStore = await cookies();
   const expected = cookieStore.get('concept2_oauth_state')?.value;
+  const oauthUserId = cookieStore.get('concept2_oauth_user')?.value;
 
-  // In mock mode, allow missing/mismatched state for local DX
-  const useMock = process.env.CONCEPT2_USE_MOCK !== 'false';
-  if (!useMock && (!state || !expected || state !== expected)) {
+  const session = await getSessionAthlete();
+  if (!session) {
+    return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  if (!shouldUseConcept2Mock() && (!state || !expected || state !== expected)) {
     return NextResponse.json({ error: 'Invalid OAuth state' }, { status: 400 });
   }
 
-  let user = await getSessionUser();
-  if (!user) {
-    const athleteId = await getDemoAthleteId();
-    if (athleteId) {
-      const athlete = await prisma.athleteProfile.findUnique({ where: { id: athleteId } });
-      if (athlete) {
-        user = await prisma.user.findUnique({ where: { id: athlete.userId } });
-      }
-    }
-  }
-  if (!user) {
-    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
+  if (oauthUserId && oauthUserId !== session.user.id) {
+    return NextResponse.json({ error: 'OAuth session mismatch' }, { status: 403 });
   }
 
-  await completeConcept2OAuth(user.id, code ?? 'mock-code');
-  return NextResponse.redirect(new URL('/settings?concept2=connected', req.url));
+  await completeConcept2OAuth(session.user.id, code ?? 'missing-code');
+
+  const res = NextResponse.redirect(new URL('/settings?concept2=connected', req.url));
+  res.cookies.set('concept2_oauth_state', '', { path: '/', maxAge: 0 });
+  res.cookies.set('concept2_oauth_user', '', { path: '/', maxAge: 0 });
+  return res;
 }

@@ -68,14 +68,14 @@ export default function NewWorkoutPage() {
       <div>
         <p className="label">Manual entry</p>
         <h1 className="font-display text-3xl font-semibold">Log a workout</h1>
-        <p className="mt-1 text-sm text-ink-400">
+        <p className="mt-1 text-sm text-apple-gray-500">
           Usable without Concept2 OAuth. Triggers deterministic metrics + AI interpretation.
         </p>
       </div>
       <form onSubmit={onSubmit} className="panel space-y-4 p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-ink-300">Date / time</span>
+            <span className="text-apple-gray-500">Date / time</span>
             <input
               className="input mt-1"
               type="datetime-local"
@@ -85,7 +85,7 @@ export default function NewWorkoutPage() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Workout type</span>
+            <span className="text-apple-gray-500">Workout type</span>
             <select className="input mt-1" name="workoutType" defaultValue="UT2">
               {TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -96,41 +96,41 @@ export default function NewWorkoutPage() {
           </label>
         </div>
         <label className="block text-sm">
-          <span className="text-ink-300">Title</span>
+          <span className="text-apple-gray-500">Title</span>
           <input className="input mt-1" name="title" placeholder="UT2 16k steady" />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-ink-300">Duration (seconds)</span>
+            <span className="text-apple-gray-500">Duration (seconds)</span>
             <input className="input mt-1" name="durationSeconds" type="number" required defaultValue={3600} />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Distance (metres)</span>
+            <span className="text-apple-gray-500">Distance (metres)</span>
             <input className="input mt-1" name="distanceMeters" type="number" required defaultValue={14000} />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Avg pace (sec/500m)</span>
+            <span className="text-apple-gray-500">Avg pace (sec/500m)</span>
             <input className="input mt-1" name="averagePaceSeconds500m" type="number" step="0.1" placeholder="128" />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Avg SPM</span>
+            <span className="text-apple-gray-500">Avg SPM</span>
             <input className="input mt-1" name="averageStrokeRate" type="number" step="0.1" placeholder="18" />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Avg HR</span>
+            <span className="text-apple-gray-500">Avg HR</span>
             <input className="input mt-1" name="averageHeartRate" type="number" placeholder="140" />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">Max HR</span>
+            <span className="text-apple-gray-500">Max HR</span>
             <input className="input mt-1" name="maxHeartRate" type="number" placeholder="148" />
           </label>
           <label className="block text-sm">
-            <span className="text-ink-300">RPE (1–10)</span>
+            <span className="text-apple-gray-500">RPE (1–10)</span>
             <input className="input mt-1" name="rpe" type="number" min={1} max={10} />
           </label>
         </div>
         <label className="block text-sm">
-          <span className="text-ink-300">Notes</span>
+          <span className="text-apple-gray-500">Notes</span>
           <textarea className="input mt-1 min-h-[90px]" name="notes" placeholder="Felt controlled..." />
         </label>
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
