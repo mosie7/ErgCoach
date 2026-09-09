@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { TRAINING_PROGRAMS, isProgramEventType, startTrainingProgram } from '@ergcoach/services';
+import {
+  TRAINING_PROGRAMS,
+  getTrainingProgram,
+  isProgramEventType,
+  startTrainingProgram,
+} from '@ergcoach/services';
 import { getSessionAthlete } from '@/lib/session';
 
 export async function GET() {
@@ -14,6 +19,9 @@ export async function GET() {
       sessionsPerWeek: p.sessionsPerWeek,
       focus: p.focus,
       summary: p.summary,
+      available: p.available,
+      paceReference: p.paceReference,
+      source: p.source,
     })),
   });
 }
@@ -28,7 +36,17 @@ export async function POST(req: Request) {
   const eventType = String(body.eventType ?? '');
   if (!isProgramEventType(eventType)) {
     return NextResponse.json(
-      { error: 'Choose a program: 2k, 5k, 10k, half marathon, marathon, or 100k.' },
+      { error: 'Choose a program: 2k, 5k, half marathon, or marathon.' },
+      { status: 400 },
+    );
+  }
+
+  const program = getTrainingProgram(eventType);
+  if (!program.available) {
+    return NextResponse.json(
+      {
+        error: `No public Concept2 plan for ${program.shortLabel} yet. Available now: 2k, 5k, half marathon, marathon.`,
+      },
       { status: 400 },
     );
   }
@@ -42,19 +60,25 @@ export async function POST(req: Request) {
         ? paceMin * 60 + (paceSec ?? 0)
         : null;
 
-  const result = await startTrainingProgram({
-    athleteId: session.athlete.id,
-    eventType,
-    targetDate: body.targetDate ?? null,
-    targetPaceSeconds500m,
-    weeks: body.weeks != null ? Number(body.weeks) : undefined,
-  });
+  try {
+    const result = await startTrainingProgram({
+      athleteId: session.athlete.id,
+      eventType,
+      targetDate: body.targetDate ?? null,
+      targetPaceSeconds500m,
+      weeks: body.weeks != null ? Number(body.weeks) : undefined,
+    });
 
-  return NextResponse.json({
-    ok: true,
-    goalId: result.goal.id,
-    planId: result.plan.id,
-    planName: result.plan.name,
-    sessionCount: result.plan.plannedWorkouts.length,
-  });
+    return NextResponse.json({
+      ok: true,
+      goalId: result.goal.id,
+      planId: result.plan.id,
+      planName: result.plan.name,
+      sessionCount: result.plan.plannedWorkouts.length,
+      sourceUrl: result.program.source?.url ?? null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not start program';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }
