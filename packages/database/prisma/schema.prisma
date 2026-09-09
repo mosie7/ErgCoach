@@ -21,6 +21,7 @@ enum EventType {
   ten_k
   half_marathon
   marathon
+  hundred_k
   general_endurance
   custom
 }

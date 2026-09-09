@@ -14,7 +14,7 @@ pnpm db:migrate:dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → **Get started** → create your account → set goal → **Connect Concept2**.
+Open [http://localhost:3000](http://localhost:3000) → **Get started** → create your account → **Programs** (2k / 5k / 10k / half / marathon / 100k) → **Connect Concept2**.
 
 ## Concept2 (your Logbook)
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { EVENT_DISTANCE_METERS, type ProgramEventType } from '@ergcoach/shared';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -16,6 +17,11 @@ export default function OnboardingPage() {
     const paceMin = Number(form.get('paceMin') || 2);
     const paceSec = Number(form.get('paceSec') || 0);
     const targetPaceSeconds500m = paceMin * 60 + paceSec;
+    const eventType = String(form.get('eventType') || 'marathon') as ProgramEventType | 'general_endurance';
+    const targetDistance =
+      eventType in EVENT_DISTANCE_METERS
+        ? EVENT_DISTANCE_METERS[eventType as ProgramEventType]
+        : null;
 
     const res = await fetch('/api/athlete/profile', {
       method: 'PATCH',
@@ -28,21 +34,10 @@ export default function OnboardingPage() {
         lactateThresholdHeartRate: form.get('lthr') ? Number(form.get('lthr')) : null,
         goal: {
           sport: 'rower',
-          eventType: form.get('eventType') || 'marathon',
+          eventType,
           targetDate: form.get('targetDate') || null,
           targetPaceSeconds500m,
-          targetDistance:
-            form.get('eventType') === 'marathon'
-              ? 42195
-              : form.get('eventType') === 'half_marathon'
-                ? 21097
-                : form.get('eventType') === 'ten_k'
-                  ? 10000
-                  : form.get('eventType') === 'five_k'
-                    ? 5000
-                    : form.get('eventType') === 'two_k'
-                      ? 2000
-                      : null,
+          targetDistance,
         },
       }),
     });
@@ -52,7 +47,7 @@ export default function OnboardingPage() {
       setError(data.error ?? 'Could not save profile');
       return;
     }
-    router.push('/settings?onboarding=done');
+    router.push('/programs');
     router.refresh();
   }
 
@@ -61,7 +56,7 @@ export default function OnboardingPage() {
       <div>
         <h1 className="page-title text-[32px]">Set up your training</h1>
         <p className="mt-2 text-[15px] text-apple-gray-500">
-          Tell us about you and your goal. Next you’ll connect Concept2.
+          Tell us about you and your goal. Next you’ll pick a training program.
         </p>
       </div>
       <form onSubmit={onSubmit} className="panel space-y-4 p-6">
@@ -94,11 +89,12 @@ export default function OnboardingPage() {
           <label className="block text-[13px]">
             <span className="text-apple-gray-500">Event</span>
             <select className="input mt-1.5" name="eventType" defaultValue="marathon">
-              <option value="marathon">RowErg Marathon</option>
-              <option value="half_marathon">Half marathon</option>
-              <option value="ten_k">10k</option>
-              <option value="five_k">5k</option>
               <option value="two_k">2k</option>
+              <option value="five_k">5k</option>
+              <option value="ten_k">10k</option>
+              <option value="half_marathon">Half marathon</option>
+              <option value="marathon">Marathon</option>
+              <option value="hundred_k">100k</option>
               <option value="general_endurance">General endurance</option>
             </select>
           </label>
@@ -122,7 +118,7 @@ export default function OnboardingPage() {
         </p>
         {error ? <p className="text-[13px] text-red-600">{error}</p> : null}
         <button className="btn-primary w-full" disabled={pending} type="submit">
-          {pending ? 'Saving…' : 'Save and connect Concept2'}
+          {pending ? 'Saving…' : 'Save and choose program'}
         </button>
       </form>
     </div>

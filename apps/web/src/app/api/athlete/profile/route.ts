@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@ergcoach/database';
+import { prisma, type EventType } from '@ergcoach/database';
+import { EVENT_DISTANCE_METERS, type ProgramEventType } from '@ergcoach/shared';
 import { getSessionAthlete } from '@/lib/session';
 
 export async function PATCH(req: Request) {
@@ -28,16 +29,23 @@ export async function PATCH(req: Request) {
     },
   });
 
-  // Upsert active marathon goal if provided
   if (body.goal) {
     const existing = await prisma.goal.findFirst({
       where: { athleteId: athlete.id, status: 'active' },
     });
+    const eventType = (body.goal.eventType ?? 'marathon') as EventType;
+    const mappedDistance =
+      eventType in EVENT_DISTANCE_METERS
+        ? EVENT_DISTANCE_METERS[eventType as ProgramEventType]
+        : null;
     const goalData = {
       sport: body.goal.sport ?? 'rower',
-      eventType: body.goal.eventType ?? 'marathon',
+      eventType,
       targetDate: body.goal.targetDate ? new Date(body.goal.targetDate) : null,
-      targetDistance: body.goal.targetDistance != null ? Number(body.goal.targetDistance) : 42195,
+      targetDistance:
+        body.goal.targetDistance != null
+          ? Number(body.goal.targetDistance)
+          : mappedDistance,
       targetTimeSeconds:
         body.goal.targetTimeSeconds != null ? Number(body.goal.targetTimeSeconds) : null,
       targetPaceSeconds500m:

@@ -26,6 +26,9 @@ export default async function DashboardPage() {
           <Link href="/workouts/new" className="btn-primary">
             Log workout
           </Link>
+          <Link href="/programs" className="btn-ghost">
+            Programs
+          </Link>
           <Link href="/settings" className="btn-ghost">
             Connect Concept2
           </Link>
@@ -38,14 +41,14 @@ export default async function DashboardPage() {
       {!data.goal ? (
         <div className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="section-title">Finish setup</p>
+            <p className="section-title">Pick a training program</p>
             <p className="mt-1 text-[14px] text-apple-gray-500">
-              Add your goal and connect your Concept2 Logbook to import workouts.
+              Choose 2k, 5k, 10k, half marathon, marathon, or 100k — then connect Concept2.
             </p>
           </div>
           <div className="flex gap-2">
-            <Link href="/onboarding" className="btn-primary">
-              Set goal
+            <Link href="/programs" className="btn-primary">
+              Browse programs
             </Link>
             <Link href="/settings" className="btn-ghost">
               Concept2
@@ -56,9 +59,14 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="panel p-5">
-          <p className="label">Current goal</p>
+          <div className="flex items-center justify-between">
+            <p className="label">Current goal</p>
+            <Link href="/programs" className="text-[12px] text-apple-blue hover:underline">
+              Change
+            </Link>
+          </div>
           <h2 className="section-title mt-2">
-            {data.goal ? String(data.goal.eventType).replace('_', ' ') : 'No active goal'}
+            {data.goal ? String(data.goal.eventType).replace(/_/g, ' ') : 'No active goal'}
           </h2>
           {data.goal ? (
             <div className="mt-5 grid grid-cols-2 gap-4">
@@ -84,6 +92,11 @@ export default async function DashboardPage() {
               />
               <Metric label="Distance" value={formatDistance(data.goal.targetDistance)} />
             </div>
+          ) : null}
+          {data.plan ? (
+            <p className="mt-4 text-[12px] text-apple-gray-400">
+              Plan · {data.plan.name}
+            </p>
           ) : null}
         </section>
 
