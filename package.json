@@ -29,5 +29,13 @@
   },
   "dependencies": {
     "aws-amplify": "^6.20.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@parcel/watcher",
+      "unrs-resolver",
+      "core-js"
+    ]
   }
 }

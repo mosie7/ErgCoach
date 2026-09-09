@@ -22,8 +22,7 @@ jobs:
       - run: pnpm --filter @ergcoach/training-engine build
       - run: pnpm --filter @ergcoach/concept2 build
       - run: pnpm --filter @ergcoach/ai-coach build
-      - run: pnpm --filter @ergcoach/database generate
-      - run: pnpm --filter @ergcoach/database exec tsc -p tsconfig.json
+      - run: pnpm --filter @ergcoach/database build
       - run: pnpm --filter @ergcoach/billing build
       - run: pnpm --filter @ergcoach/services build
       - run: pnpm -r typecheck
