@@ -20,6 +20,7 @@ COPY packages/database/package.json packages/database/
 COPY packages/training-engine/package.json packages/training-engine/
 COPY packages/concept2/package.json packages/concept2/
 COPY packages/ai-coach/package.json packages/ai-coach/
+COPY packages/billing/package.json packages/billing/
 COPY packages/services/package.json packages/services/
 RUN pnpm install --frozen-lockfile
 
@@ -35,6 +36,7 @@ RUN pnpm --filter @ergcoach/shared build \
   && pnpm --filter @ergcoach/ai-coach build \
   && pnpm --filter @ergcoach/database generate \
   && pnpm --filter @ergcoach/database exec tsc -p tsconfig.json \
+  && pnpm --filter @ergcoach/billing build \
   && pnpm --filter @ergcoach/services build \
   && pnpm --filter @ergcoach/web build
 

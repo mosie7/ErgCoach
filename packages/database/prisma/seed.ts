@@ -133,6 +133,7 @@ async function main() {
   await prisma.heartRateZone.deleteMany();
   await prisma.dataConnection.deleteMany();
   await prisma.authSession.deleteMany();
+  await prisma.subscription.deleteMany();
   await prisma.athleteProfile.deleteMany();
   await prisma.user.deleteMany();
 
@@ -142,6 +143,14 @@ async function main() {
       displayName: 'Demo Marathon Rower',
       passwordHash: hashPassword(DEMO_PASSWORD),
       authProvider: AuthProvider.local,
+      subscription: {
+        create: {
+          plan: 'pro',
+          status: 'active',
+          isComplimentary: true,
+          currentPeriodEnd: addDays(new Date(), 365),
+        },
+      },
     },
   });
 

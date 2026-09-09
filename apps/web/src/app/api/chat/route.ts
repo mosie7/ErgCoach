@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { coachChat, getChatHistory } from '@ergcoach/services';
+import { coachChat, getChatHistory, EntitlementError } from '@ergcoach/services';
 import { getDemoAthleteId } from '@/lib/session';
 
 export async function GET() {
@@ -22,6 +22,17 @@ export async function POST(req: Request) {
     const result = await coachChat(athleteId, body.question.trim());
     return NextResponse.json(result);
   } catch (e) {
+    if (e instanceof EntitlementError) {
+      return NextResponse.json(
+        {
+          error: e.message,
+          code: e.code,
+          entitlement: e.entitlement,
+          upgradeUrl: e.upgradeUrl,
+        },
+        { status: 402 },
+      );
+    }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'Chat failed' },
       { status: 500 },

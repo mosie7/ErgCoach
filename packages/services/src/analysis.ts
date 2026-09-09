@@ -151,6 +151,46 @@ export async function runPostWorkoutAnalysis(workoutId: string) {
     subjectiveFeedback: workout.subjectiveFeedback as unknown as Record<string, unknown> | null,
   };
 
+  const { hasEntitlement } = await import('@ergcoach/billing');
+  const canUseAi = await hasEntitlement(athlete.userId, 'ai_workout_analysis');
+
+  if (!canUseAi) {
+    return prisma.workoutAnalysis.upsert({
+      where: { workoutId: workout.id },
+      create: {
+        workoutId: workout.id,
+        calculatedMetrics: metrics as object,
+        aiAnalysis: {
+          summary:
+            'Deterministic metrics calculated. Upgrade to Pro Coach for AI interpretation of this session.',
+          sessionVerdict: 'unknown',
+          whatWasAchieved: ['Objective metrics saved for this workout.'],
+          executionAnalysis: [
+            metrics.complianceScore != null
+              ? `Compliance score ${metrics.complianceScore}% (calculated locally).`
+              : 'No planned workout linked.',
+          ],
+          positiveSignals: [],
+          concerns: ['AI coaching report locked — Pro subscription required.'],
+          goalImpact: 'Metrics are available; AI goal commentary requires Pro.',
+          progressAssessment: 'See dashboard trends for non-AI progression signals.',
+          nextFocus: ['Upgrade to Pro Coach to unlock AI session reviews.'],
+          confidence: 'low',
+          evidence: ['ai_workout_analysis entitlement missing'],
+        },
+        classification: metrics.detectedClassification,
+        confidence: 'low',
+        sessionVerdict: 'unknown',
+        modelVersion: 'metrics-only',
+      },
+      update: {
+        calculatedMetrics: metrics as object,
+        classification: metrics.detectedClassification,
+        generatedAt: new Date(),
+      },
+    });
+  }
+
   const { analysis, modelVersion } = await generateWorkoutAnalysis(evidence);
 
   return prisma.workoutAnalysis.upsert({

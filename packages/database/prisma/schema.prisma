@@ -94,6 +94,20 @@ enum SessionVerdict {
   unknown
 }
 
+enum PlanTier {
+  free
+  pro
+}
+
+enum SubscriptionStatus {
+  inactive
+  trialing
+  active
+  past_due
+  canceled
+  incomplete
+}
+
 model User {
   id           String       @id @default(cuid())
   email        String       @unique
@@ -107,8 +121,31 @@ model User {
   athleteProfile AthleteProfile?
   authSessions   AuthSession[]
   dataConnections DataConnection[]
+  subscription   Subscription?
 
   @@index([authProvider, externalAuthId])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  plan                 PlanTier           @default(free)
+  status               SubscriptionStatus @default(inactive)
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  trialEndsAt          DateTime?
+  /// Local/dev grant without Stripe (e.g. seeded demo Pro)
+  isComplimentary      Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, plan])
+  @@index([stripeCustomerId])
 }
 
 model AuthSession {

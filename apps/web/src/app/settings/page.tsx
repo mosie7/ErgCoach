@@ -40,6 +40,22 @@ export default function SettingsPage() {
       </div>
 
       <section className="panel space-y-3 p-5">
+        <h2 className="font-display text-lg font-semibold">Subscription</h2>
+        <p className="text-sm text-ink-400">
+          Pro Coach unlocks AI chat, AI workout reports, and weekly AI reviews. Free keeps logging
+          and objective metrics.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a className="btn-primary" href="/pricing">
+            View plans
+          </a>
+          <a className="btn-ghost" href="/billing">
+            Manage billing
+          </a>
+        </div>
+      </section>
+
+      <section className="panel space-y-3 p-5">
         <h2 className="font-display text-lg font-semibold">Concept2 Logbook</h2>
         <p className="text-sm text-ink-400">
           OAuth + sync are implemented behind a Concept2Client adapter. Mock mode is on by default
