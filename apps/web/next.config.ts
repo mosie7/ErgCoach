@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
-import path from 'node:path';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Amplify Hosting SSR packages `.next` itself — Docker `standalone` tracing
+  // across the monorepo OOMs the Amplify build image.
   transpilePackages: [
     '@ergcoach/shared',
     '@ergcoach/database',
@@ -17,7 +17,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
-  outputFileTracingRoot: path.join(__dirname, '../..'),
 };
 
 export default nextConfig;

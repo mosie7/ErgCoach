@@ -17,8 +17,10 @@ frontend:
         - pnpm install --frozen-lockfile
         - pnpm rebuild esbuild
         - export PATH="$PWD/node_modules/.bin:$PATH"
+        - export NODE_OPTIONS="--max-old-space-size=8192"
     build:
       commands:
+        - export NODE_OPTIONS="--max-old-space-size=8192"
         - pnpm --filter @ergcoach/shared build
         - pnpm --filter @ergcoach/training-engine build
         - pnpm --filter @ergcoach/concept2 build
