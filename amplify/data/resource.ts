@@ -22,9 +22,10 @@ const schema = a
         dataConnections: a.hasMany('DataConnection', 'userId'),
       })
       .identifier(['id'])
+      // User.id is Cognito sub — authorize by sub claim, not a separate owner field.
       .authorization((allow) => [
-        allow.owner().to(['read', 'update']),
-        allow.authenticated('identityPool').to(['read', 'create', 'update']),
+        allow.ownerDefinedIn('id').identityClaim('sub').to(['create', 'read', 'update']),
+        allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
     // Named BillingSubscription — AppSync reserves the GraphQL type name "Subscription"
@@ -48,8 +49,8 @@ const schema = a
         index('stripeSubscriptionId'),
       ])
       .authorization((allow) => [
-        allow.owner().to(['read']),
-        allow.authenticated('identityPool').to(['read', 'create', 'update']),
+        allow.ownerDefinedIn('userId').identityClaim('sub').to(['create', 'read', 'update']),
+        allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
     AthleteProfile: a
@@ -79,7 +80,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('userId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.ownerDefinedIn('userId').identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -100,7 +101,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -119,7 +120,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -145,7 +146,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -164,7 +165,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -200,7 +201,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId'), index('trainingBlockId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -215,7 +216,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -231,7 +232,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -250,7 +251,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('userId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.ownerDefinedIn('userId').identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
 
@@ -277,7 +278,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [index('athleteId')])
       .authorization((allow) => [
-        allow.owner(),
+        allow.owner().identityClaim('sub'),
         allow.authenticated('identityPool').to(['read', 'create', 'update', 'delete']),
       ]),
   })

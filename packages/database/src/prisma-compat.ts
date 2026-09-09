@@ -302,10 +302,19 @@ async function listAll(
   return items;
 }
 
+function isAuthzError(message: string): boolean {
+  return /not authorized|unauthorized|access denied/i.test(message);
+}
+
 async function getById(model: AmplifyModelClient, id: string): Promise<Record<string, unknown> | null> {
   const res = await model.get({ id });
   if (res.errors?.length) {
-    throw new Error(res.errors.map((e: { message: string }) => e.message).join('; '));
+    const message = res.errors.map((e: { message: string }) => e.message).join('; ');
+    // Missing/unauthorized rows should look like "not found" so callers can provision.
+    if (isAuthzError(message) || /not found|cannot return null/i.test(message)) {
+      return null;
+    }
+    throw new Error(message);
   }
   return coerceRecord(res.data as Record<string, unknown> | null);
 }

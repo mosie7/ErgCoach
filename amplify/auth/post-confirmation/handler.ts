@@ -42,7 +42,6 @@ export const handler: PostConfirmationTriggerHandler = async (event) => {
     preferredUnits: 'metric',
     hrZoneMethod: 'lthr',
     isSyntheticSeed: false,
-    owner: sub,
   });
 
   await client.models.BillingSubscription.create({
@@ -51,7 +50,6 @@ export const handler: PostConfirmationTriggerHandler = async (event) => {
     status: 'inactive',
     cancelAtPeriodEnd: false,
     isComplimentary: false,
-    owner: sub,
   });
 
   return event;

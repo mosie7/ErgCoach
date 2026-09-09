@@ -22,7 +22,11 @@ export default function LoginPage() {
         password: String(form.get('password') ?? ''),
       });
       // Ensure DynamoDB User/Athlete rows exist (post-confirm + race safety)
-      await fetch('/api/auth/session', { method: 'POST' });
+      const sessionRes = await fetch('/api/auth/session', { method: 'POST' });
+      if (!sessionRes.ok) {
+        const body = (await sessionRes.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || 'Signed in, but profile setup failed. Try again.');
+      }
       router.push('/');
       router.refresh();
     } catch (err) {

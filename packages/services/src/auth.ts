@@ -38,10 +38,11 @@ export async function ensureAppUser(input: {
         },
       },
     });
-  } catch {
+  } catch (err) {
     const raced = await prisma.user.findUnique({ where: { id: input.sub } });
     if (raced) return raced;
-    throw new Error('Could not provision user profile');
+    const detail = err instanceof Error ? err.message : 'unknown error';
+    throw new Error(`Could not provision user profile: ${detail}`);
   }
 }
 
