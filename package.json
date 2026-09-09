@@ -12,7 +12,7 @@
     "test": "pnpm -r test",
     "db:build": "pnpm --filter @ergcoach/database build",
     "db:analyse": "pnpm --filter @ergcoach/services exec tsx src/analyse-all.ts",
-    "sandbox": "ampx sandbox",
+    "sandbox": "ampx sandbox --outputs-out-dir apps/web && cp apps/web/amplify_outputs.json amplify_outputs.json",
     "sandbox:delete": "ampx sandbox delete"
   },
   "devDependencies": {
