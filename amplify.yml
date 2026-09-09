@@ -5,7 +5,7 @@ applications:
       phases:
         build:
           commands:
-            - cd ../..
+            - cd "$(git rev-parse --show-toplevel)"
             - npm install -g pnpm@10.33.3
             - pnpm install --frozen-lockfile
             - pnpm rebuild esbuild
@@ -17,6 +17,7 @@ applications:
       phases:
         preBuild:
           commands:
+            - cd "$(git rev-parse --show-toplevel)"
             - export PATH="$PWD/node_modules/.bin:$PATH"
             - export NODE_OPTIONS="--max-old-space-size=8192"
             - test -f amplify_outputs.json && cp amplify_outputs.json apps/web/amplify_outputs.json || true
@@ -29,6 +30,7 @@ applications:
             - pnpm --filter @ergcoach/services build
         build:
           commands:
+            - cd "$(git rev-parse --show-toplevel)"
             - export NODE_OPTIONS="--max-old-space-size=8192"
             - export PATH="$PWD/node_modules/.bin:$PATH"
             - env | grep -e NEXT_PUBLIC_ -e OPENAI_ -e CONCEPT2_ -e STRIPE_ -e BILLING_ >> apps/web/.env.production || true
