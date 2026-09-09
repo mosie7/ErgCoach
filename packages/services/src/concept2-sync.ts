@@ -32,13 +32,37 @@ export function shouldUseConcept2Mock(): boolean {
 
 function encodeToken(tokens: Concept2Tokens): string {
   // MVP encoding — replace with KMS/envelope encryption in hardened production
-  return Buffer.from(JSON.stringify(tokens)).toString('base64url');
+  return Buffer.from(
+    JSON.stringify({
+      ...tokens,
+      expiresAt: tokens.expiresAt ? tokens.expiresAt.toISOString() : null,
+    }),
+  ).toString('base64url');
 }
 
 function decodeToken(enc: string | null | undefined): Concept2Tokens | null {
   if (!enc) return null;
   try {
-    return JSON.parse(Buffer.from(enc, 'base64url').toString('utf8')) as Concept2Tokens;
+    const parsed = JSON.parse(Buffer.from(enc, 'base64url').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    const expiresRaw = parsed['expiresAt'];
+    const expiresAt =
+      expiresRaw instanceof Date
+        ? expiresRaw
+        : typeof expiresRaw === 'string' || typeof expiresRaw === 'number'
+          ? new Date(expiresRaw)
+          : undefined;
+    return {
+      accessToken: String(parsed['accessToken'] ?? ''),
+      refreshToken:
+        parsed['refreshToken'] != null ? String(parsed['refreshToken']) : undefined,
+      expiresAt:
+        expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : undefined,
+      tokenType: parsed['tokenType'] != null ? String(parsed['tokenType']) : undefined,
+      scope: parsed['scope'] != null ? String(parsed['scope']) : undefined,
+    };
   } catch {
     return null;
   }
@@ -72,6 +96,8 @@ export async function completeConcept2OAuth(userId: string, code: string) {
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
       metadata: { mock: useMock },
+      // Clear stale sync cursor so the next sync pulls full history after reconnect.
+      lastSyncAt: null,
     },
   });
 }
@@ -88,7 +114,11 @@ export async function getConcept2Connection(userId: string) {
   });
 }
 
-export async function syncConcept2Workouts(userId: string, athleteId: string) {
+export async function syncConcept2Workouts(
+  userId: string,
+  athleteId: string,
+  options?: { full?: boolean },
+) {
   const connection = await prisma.dataConnection.findUnique({
     where: { userId_provider: { userId, provider: 'concept2' } },
   });
@@ -96,13 +126,17 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
     throw new Error('Concept2 is not connected for this account');
   }
 
-  const tokens = decodeToken(connection?.accessTokenEnc);
+  let tokens = decodeToken(connection?.accessTokenEnc);
+  if (!shouldUseConcept2Mock() && (!tokens || !tokens.accessToken)) {
+    throw new Error('Concept2 tokens are missing or corrupt — reconnect Concept2 in Settings');
+  }
+
   const client = createConcept2Client(getConcept2Config(), {
     useMock: shouldUseConcept2Mock(),
     tokens,
   });
 
-  // Refresh token if expired
+  // Refresh token if expired / about to expire
   if (
     !shouldUseConcept2Mock() &&
     tokens?.refreshToken &&
@@ -110,6 +144,7 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
     tokens.expiresAt.getTime() < Date.now() + 60_000
   ) {
     const refreshed = await client.refreshToken(tokens);
+    tokens = refreshed;
     await prisma.dataConnection.update({
       where: { id: connection!.id },
       data: {
@@ -125,35 +160,62 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
     select: { externalId: true },
   });
   const known = new Set<string>(
-    existing.map((e: { externalId?: string | null }) => e.externalId).filter((id): id is string => !!id),
+    existing
+      .map((e: { externalId?: string | null }) => e.externalId)
+      .filter((id): id is string => !!id),
   );
 
+  // Full sync (reconnect / explicit) ignores lastSyncAt so historical workouts return.
+  // Also ignore a stale cursor when nothing has ever been imported successfully.
+  const updatedAfter =
+    options?.full || !connection?.lastSyncAt || known.size === 0
+      ? undefined
+      : connection.lastSyncAt;
+
   const result = await client.syncWorkouts({
-    updatedAfter: connection?.lastSyncAt ?? undefined,
+    updatedAfter,
     knownExternalIds: known,
   });
 
   const imported: Awaited<ReturnType<typeof createManualWorkout>>[] = [];
+  const importErrors: string[] = [];
+
   for (const w of result.imported) {
-    const created = await createManualWorkout({
-      athleteId,
-      startedAt: w.startedAt,
-      workoutType: 'unknown',
-      title: `Concept2 ${w.sport} ${Math.round(w.distanceMeters)}m`,
-      durationSeconds: w.durationSeconds,
-      distanceMeters: w.distanceMeters,
-      averagePaceSeconds500m: w.averagePaceSeconds500m,
-      averageWatts: w.averageWatts,
-      averageHeartRate: w.averageHeartRate,
-      maxHeartRate: w.maxHeartRate,
-      averageStrokeRate: w.averageStrokeRate,
-      splits: w.splits,
-      source: 'concept2',
-      externalId: w.externalId,
-      rawData: w.raw,
-      analyse: true,
-    });
-    imported.push(created);
+    try {
+      const created = await createManualWorkout({
+        athleteId,
+        startedAt: w.startedAt,
+        workoutType: 'unknown',
+        title: `Concept2 ${w.sport} ${Math.round(w.distanceMeters)}m`,
+        durationSeconds: w.durationSeconds,
+        distanceMeters: w.distanceMeters,
+        averagePaceSeconds500m: w.averagePaceSeconds500m,
+        averageWatts: w.averageWatts,
+        averageHeartRate: w.averageHeartRate,
+        maxHeartRate: w.maxHeartRate,
+        averageStrokeRate: w.averageStrokeRate,
+        splits: w.splits,
+        source: 'concept2',
+        externalId: w.externalId,
+        rawData: w.raw,
+        // Analysis can be slow / flaky — don't block the whole import batch.
+        analyse: false,
+      });
+      imported.push(created);
+      // Best-effort analysis after successful create
+      try {
+        const { runPostWorkoutAnalysis } = await import('./analysis.js');
+        await runPostWorkoutAnalysis(created.id);
+      } catch (err) {
+        importErrors.push(
+          `analysis:${w.externalId}:${err instanceof Error ? err.message : 'failed'}`,
+        );
+      }
+    } catch (err) {
+      importErrors.push(
+        `import:${w.externalId}:${err instanceof Error ? err.message : 'failed'}`,
+      );
+    }
   }
 
   if (connection) {
@@ -165,7 +227,9 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
 
   return {
     importedCount: imported.length,
+    fetchedCount: result.imported.length + result.skippedDuplicateIds.length,
     skippedDuplicates: result.skippedDuplicateIds.length,
+    importErrors: importErrors.slice(0, 5),
     mode: shouldUseConcept2Mock() ? 'mock' : 'live',
     workouts: imported,
   };

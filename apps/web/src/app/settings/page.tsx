@@ -46,14 +46,24 @@ function SettingsInner() {
     setCsvStatus(res.ok ? `Imported ${data.count} workouts` : data.error ?? 'Import failed');
   }
 
-  async function syncConcept2() {
-    setSyncStatus('Syncing…');
-    const res = await fetch('/api/concept2/sync', { method: 'POST' });
-    const data = await res.json();
+  async function syncConcept2(full = false) {
+    setSyncStatus(full ? 'Full syncing…' : 'Syncing…');
+    const res = await fetch('/api/concept2/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setSyncStatus(data.error ?? 'Sync failed');
+      return;
+    }
+    const errHint =
+      Array.isArray(data.importErrors) && data.importErrors.length
+        ? ` · ${data.importErrors.length} item warning(s)`
+        : '';
     setSyncStatus(
-      res.ok
-        ? `Imported ${data.importedCount}, skipped ${data.skippedDuplicates} duplicates (${data.mode})`
-        : data.error ?? 'Sync failed',
+      `Imported ${data.importedCount} of ${data.fetchedCount ?? data.importedCount} fetched, skipped ${data.skippedDuplicates} duplicates (${data.mode})${errHint}`,
     );
     refreshStatus();
   }
@@ -143,8 +153,21 @@ function SettingsInner() {
           <a className="btn-primary" href="/api/concept2/connect">
             {c2?.connected ? 'Reconnect Concept2' : 'Connect Concept2'}
           </a>
-          <button className="btn-accent" type="button" onClick={syncConcept2} disabled={!c2?.connected && !c2?.useMock}>
+          <button
+            className="btn-accent"
+            type="button"
+            onClick={() => syncConcept2(false)}
+            disabled={!c2?.connected && !c2?.useMock}
+          >
             Sync workouts
+          </button>
+          <button
+            className="btn-ghost"
+            type="button"
+            onClick={() => syncConcept2(true)}
+            disabled={!c2?.connected && !c2?.useMock}
+          >
+            Full resync
           </button>
           {c2?.connected ? (
             <button className="btn-ghost" type="button" onClick={disconnect}>

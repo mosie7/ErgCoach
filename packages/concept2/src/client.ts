@@ -9,6 +9,8 @@ import type {
 } from './types.js';
 import { mockWorkouts } from './fixtures.js';
 
+const DEFAULT_SCOPE = 'user:read,results:read';
+
 /**
  * Mock Concept2 client for local development without API credentials.
  */
@@ -23,7 +25,7 @@ export class MockConcept2Client implements Concept2Client {
     url.searchParams.set('client_id', this.config.clientId || 'mock-client');
     url.searchParams.set('redirect_uri', this.config.redirectUri);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'user:read,results:read'); // VERIFY scopes
+    url.searchParams.set('scope', DEFAULT_SCOPE);
     url.searchParams.set('state', state);
     return url.toString();
   }
@@ -33,7 +35,7 @@ export class MockConcept2Client implements Concept2Client {
       accessToken: `mock-access-${authorizationCode || 'demo'}`,
       refreshToken: 'mock-refresh',
       expiresAt: new Date(Date.now() + 3600_000),
-      scope: 'user:read,results:read',
+      scope: DEFAULT_SCOPE,
     };
     return this.tokens;
   }
@@ -85,8 +87,8 @@ export class MockConcept2Client implements Concept2Client {
 }
 
 /**
- * Live HTTP client skeleton. Methods throw until credentials + verified endpoints
- * are configured. Prefer MockConcept2Client when CONCEPT2_USE_MOCK=true.
+ * Live Concept2 Logbook HTTP client.
+ * Docs: https://log.concept2.com/developers/documentation/
  */
 export class HttpConcept2Client implements Concept2Client {
   constructor(
@@ -99,13 +101,12 @@ export class HttpConcept2Client implements Concept2Client {
     url.searchParams.set('client_id', this.config.clientId);
     url.searchParams.set('redirect_uri', this.config.redirectUri);
     url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', 'user:read,results:read'); // VERIFY
+    url.searchParams.set('scope', DEFAULT_SCOPE);
     url.searchParams.set('state', state);
     return url.toString();
   }
 
   async connect(authorizationCode: string): Promise<Concept2Tokens> {
-    // VERIFY token endpoint request shape against Concept2 docs
     const res = await fetch(this.config.tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -115,21 +116,17 @@ export class HttpConcept2Client implements Concept2Client {
         grant_type: 'authorization_code',
         code: authorizationCode,
         redirect_uri: this.config.redirectUri,
+        scope: DEFAULT_SCOPE,
       }),
     });
     if (!res.ok) {
-      throw new Error(`Concept2 token exchange failed: ${res.status} (VERIFY endpoint/fields)`);
+      const detail = await res.text().catch(() => '');
+      throw new Error(
+        `Concept2 token exchange failed: ${res.status}${detail ? ` — ${detail.slice(0, 180)}` : ''}`,
+      );
     }
     const data = (await res.json()) as Record<string, unknown>;
-    this.tokens = {
-      accessToken: String(data['access_token']),
-      refreshToken: data['refresh_token'] != null ? String(data['refresh_token']) : undefined,
-      expiresAt: data['expires_in']
-        ? new Date(Date.now() + Number(data['expires_in']) * 1000)
-        : undefined,
-      tokenType: data['token_type'] != null ? String(data['token_type']) : undefined,
-      scope: data['scope'] != null ? String(data['scope']) : undefined,
-    };
+    this.tokens = parseTokenResponse(data);
     return this.tokens;
   }
 
@@ -145,19 +142,21 @@ export class HttpConcept2Client implements Concept2Client {
         client_secret: this.config.clientSecret,
         grant_type: 'refresh_token',
         refresh_token: tokens.refreshToken,
+        scope: tokens.scope ?? DEFAULT_SCOPE,
       }),
     });
     if (!res.ok) {
-      throw new Error(`Concept2 token refresh failed: ${res.status}`);
+      const detail = await res.text().catch(() => '');
+      throw new Error(
+        `Concept2 token refresh failed: ${res.status}${detail ? ` — ${detail.slice(0, 180)}` : ''}`,
+      );
     }
     const data = (await res.json()) as Record<string, unknown>;
     this.tokens = {
-      accessToken: String(data['access_token']),
+      ...parseTokenResponse(data),
       refreshToken:
         data['refresh_token'] != null ? String(data['refresh_token']) : tokens.refreshToken,
-      expiresAt: data['expires_in']
-        ? new Date(Date.now() + Number(data['expires_in']) * 1000)
-        : undefined,
+      scope: data['scope'] != null ? String(data['scope']) : tokens.scope,
     };
     return this.tokens;
   }
@@ -167,26 +166,38 @@ export class HttpConcept2Client implements Concept2Client {
     page?: number;
     perPage?: number;
   }): Promise<Concept2NormalizedWorkout[]> {
-    // VERIFY: path likely /api/users/me/results or similar — confirm before production use
-    const url = new URL(`${this.config.apiBaseUrl}/users/me/results`);
-    if (options?.page) url.searchParams.set('page', String(options.page));
-    if (options?.perPage) url.searchParams.set('per_page', String(options.perPage));
-    if (options?.updatedAfter) {
-      url.searchParams.set('updated_after', options.updatedAfter.toISOString());
-    }
-    const res = await this.authorizedGet(url);
-    const data = (await res.json()) as Record<string, unknown>;
-    const rows = Array.isArray(data['data'])
-      ? (data['data'] as Record<string, unknown>[])
-      : Array.isArray(data)
-        ? (data as Record<string, unknown>[])
-        : [];
-    return rows.map((r) => normalizeConcept2Workout(r));
+    const perPage = options?.perPage ?? 50;
+    let page = options?.page ?? 1;
+    const all: Concept2NormalizedWorkout[] = [];
+    let totalPages = 1;
+
+    do {
+      const url = new URL(`${this.config.apiBaseUrl}/users/me/results`);
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('per_page', String(perPage));
+      if (options?.updatedAfter) {
+        // Concept2 expects GMT "YYYY-MM-DD HH:MM:SS", not ISO-8601.
+        url.searchParams.set('updated_after', formatConcept2DateTime(options.updatedAfter));
+      }
+      const res = await this.authorizedGet(url);
+      const data = (await res.json()) as Record<string, unknown>;
+      const rows = Array.isArray(data['data'])
+        ? (data['data'] as Record<string, unknown>[])
+        : Array.isArray(data)
+          ? (data as Record<string, unknown>[])
+          : [];
+      all.push(...rows.map((r) => normalizeConcept2Workout(r)));
+
+      const meta = data['meta'] as { pagination?: { total_pages?: number } } | undefined;
+      totalPages = Number(meta?.pagination?.total_pages ?? 1) || 1;
+      page += 1;
+    } while (page <= totalPages && options?.page == null);
+
+    return all;
   }
 
   async getWorkout(id: string): Promise<Concept2NormalizedWorkout | null> {
-    // VERIFY path
-    const url = new URL(`${this.config.apiBaseUrl}/results/${id}`);
+    const url = new URL(`${this.config.apiBaseUrl}/users/me/results/${id}`);
     const res = await this.authorizedGet(url);
     if (res.status === 404) return null;
     const data = (await res.json()) as Record<string, unknown>;
@@ -202,6 +213,7 @@ export class HttpConcept2Client implements Concept2Client {
     const imported: Concept2NormalizedWorkout[] = [];
     const skippedDuplicateIds: string[] = [];
     for (const w of workouts) {
+      if (!w.externalId) continue;
       if (options?.knownExternalIds?.has(w.externalId)) {
         skippedDuplicateIds.push(w.externalId);
       } else {
@@ -212,7 +224,6 @@ export class HttpConcept2Client implements Concept2Client {
   }
 
   async handleWebhook(payload: unknown): Promise<Concept2WebhookResult> {
-    // VERIFY webhook signature validation against Concept2 docs before production
     const body = (payload ?? {}) as Record<string, unknown>;
     return {
       accepted: true,
@@ -224,16 +235,19 @@ export class HttpConcept2Client implements Concept2Client {
 
   private async authorizedGet(url: URL): Promise<Response> {
     if (!this.tokens?.accessToken) {
-      throw new Error('Concept2 client not authenticated');
+      throw new Error('Concept2 client not authenticated — reconnect Concept2 in Settings');
     }
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${this.tokens.accessToken}`,
-        Accept: 'application/vnd.c2logbook.v1+json', // VERIFY Accept header
+        Accept: 'application/vnd.c2logbook.v1+json',
       },
     });
     if (!res.ok) {
-      throw new Error(`Concept2 API error ${res.status} for ${url.pathname}`);
+      const detail = await res.text().catch(() => '');
+      throw new Error(
+        `Concept2 API error ${res.status} for ${url.pathname}${detail ? ` — ${detail.slice(0, 180)}` : ''}`,
+      );
     }
     return res;
   }
@@ -247,4 +261,22 @@ export function createConcept2Client(
     return new MockConcept2Client(config, options?.tokens ?? null);
   }
   return new HttpConcept2Client(config, options?.tokens ?? null);
+}
+
+function parseTokenResponse(data: Record<string, unknown>): Concept2Tokens {
+  return {
+    accessToken: String(data['access_token']),
+    refreshToken: data['refresh_token'] != null ? String(data['refresh_token']) : undefined,
+    expiresAt: data['expires_in']
+      ? new Date(Date.now() + Number(data['expires_in']) * 1000)
+      : undefined,
+    tokenType: data['token_type'] != null ? String(data['token_type']) : undefined,
+    scope: data['scope'] != null ? String(data['scope']) : undefined,
+  };
+}
+
+/** Format a Date as Concept2 GMT "YYYY-MM-DD HH:MM:SS". */
+export function formatConcept2DateTime(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 }
