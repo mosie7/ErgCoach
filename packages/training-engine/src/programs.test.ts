@@ -1,45 +1,60 @@
 import { describe, expect, it } from 'vitest';
 import { EVENT_DISTANCE_METERS } from '@ergcoach/shared';
+import { CONCEPT2_MARATHON_WEEKS } from './concept2-plans.js';
 import { generateProgramPlan, TRAINING_PROGRAMS } from './programs.js';
 
-describe('training programs', () => {
-  it('lists all six race distances', () => {
-    expect(TRAINING_PROGRAMS.map((p) => p.eventType)).toEqual([
-      'two_k',
-      'five_k',
-      'ten_k',
-      'half_marathon',
-      'marathon',
-      'hundred_k',
+describe('Concept2 training programs', () => {
+  it('lists six distances with real Concept2 coverage for 2k/5k/half/marathon', () => {
+    expect(TRAINING_PROGRAMS.map((p) => [p.eventType, p.available])).toEqual([
+      ['two_k', true],
+      ['five_k', true],
+      ['ten_k', false],
+      ['half_marathon', true],
+      ['marathon', true],
+      ['hundred_k', false],
     ]);
   });
 
-  it('generates a dated marathon plan with progressive long rows', () => {
+  it('encodes the Concept2 marathon schedule with week 5 and 9 5k time trials', () => {
+    expect(CONCEPT2_MARATHON_WEEKS).toHaveLength(16);
+    expect(CONCEPT2_MARATHON_WEEKS[4]![1]!.text).toMatch(/5k time trial/i);
+    expect(CONCEPT2_MARATHON_WEEKS[8]![1]!.text).toMatch(/5k time trial/i);
+    expect(CONCEPT2_MARATHON_WEEKS[0]![0]!.targetDistanceMeters).toBe(10_000);
+    expect(CONCEPT2_MARATHON_WEEKS[15]![3]!.targetDistanceMeters).toBe(
+      EVENT_DISTANCE_METERS.marathon,
+    );
+  });
+
+  it('generates a dated Concept2 marathon plan', () => {
     const plan = generateProgramPlan({
       eventType: 'marathon',
       startDate: new Date('2026-03-02T00:00:00Z'),
-      targetPaceSeconds500m: 120,
-      weeks: 4,
+      targetPaceSeconds500m: 120, // 5k pace reference
     });
 
-    expect(plan.name).toContain('Marathon');
-    expect(plan.sessions.length).toBe(4 * 5);
-    expect(plan.startDate.toISOString().startsWith('2026-03-02')).toBe(true);
+    expect(plan.name).toContain('Concept2 Marathon');
+    expect(plan.sessions.length).toBe(16 * 4);
+    const paceChecks = plan.sessions.filter((s) => /5k time trial/i.test(s.title));
+    expect(paceChecks).toHaveLength(2);
+    expect(paceChecks[0]!.targetDistanceMeters).toBe(5000);
 
-    const longRows = plan.sessions.filter((s) => s.title.includes('Long row'));
-    expect(longRows).toHaveLength(4);
-    const distances = longRows.map((s) => s.targetDistanceMeters ?? 0);
-    expect(distances[0]).toBeLessThan(distances[distances.length - 1]!);
-    expect(distances[distances.length - 1]!).toBeLessThanOrEqual(EVENT_DISTANCE_METERS.marathon);
-
-    const paced = plan.sessions.find((s) => s.targetPaceMinSeconds500m != null);
-    expect(paced?.targetPaceMinSeconds500m).toBeGreaterThan(100);
+    const ut2 = plan.sessions.find((s) => s.title.includes('10 km UT2'));
+    expect(ut2?.targetPaceMinSeconds500m).toBe(138); // 120 + 18
+    expect(ut2?.targetPaceMaxSeconds500m).toBe(142); // 120 + 22
   });
 
-  it('generates a 100k plan with ultra long sessions', () => {
-    const plan = generateProgramPlan({ eventType: 'hundred_k', weeks: 2 });
-    expect(plan.sessions.length).toBe(2 * 5);
-    const ultra = plan.sessions.find((s) => s.title.includes('Ultra long'));
-    expect(ultra?.targetDistanceMeters).toBeGreaterThan(10_000);
+  it('generates Concept2 2k and 5k plans', () => {
+    const twoK = generateProgramPlan({ eventType: 'two_k' });
+    expect(twoK.sessions.length).toBe(12 * 4);
+    expect(twoK.sessions.some((s) => s.title.includes('2000m test'))).toBe(true);
+
+    const fiveK = generateProgramPlan({ eventType: 'five_k' });
+    expect(fiveK.sessions.length).toBe(8 * 4);
+    expect(fiveK.program.source?.url).toContain('5k-erg-test');
+  });
+
+  it('refuses distances without a public Concept2 plan', () => {
+    expect(() => generateProgramPlan({ eventType: 'ten_k' })).toThrow(/No public Concept2/);
+    expect(() => generateProgramPlan({ eventType: 'hundred_k' })).toThrow(/No public Concept2/);
   });
 });

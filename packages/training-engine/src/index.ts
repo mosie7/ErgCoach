@@ -8,3 +8,4 @@ export * from './progression.js';
 export * from './readiness.js';
 export * from './analyze.js';
 export * from './programs.js';
+export type { Concept2PlanSource, Concept2Session, PaceZone } from './concept2-plans.js';
