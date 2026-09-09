@@ -31,6 +31,10 @@ export async function GET() {
       configured,
       useMock,
       mode: useMock ? 'mock' : configured ? 'live' : 'unconfigured',
+      redirectUri:
+        process.env.CONCEPT2_REDIRECT_URI?.trim() ||
+        `${(process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/api/concept2/callback`,
+      clientIdPrefix: process.env.CONCEPT2_CLIENT_ID?.slice(0, 8) ?? null,
     });
   } catch (e) {
     return NextResponse.json(

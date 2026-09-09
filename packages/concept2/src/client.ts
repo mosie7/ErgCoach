@@ -97,13 +97,15 @@ export class HttpConcept2Client implements Concept2Client {
   ) {}
 
   getAuthorizationUrl(state: string): string {
-    const url = new URL(this.config.authUrl);
-    url.searchParams.set('client_id', this.config.clientId);
-    url.searchParams.set('redirect_uri', this.config.redirectUri);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('scope', DEFAULT_SCOPE);
-    url.searchParams.set('state', state);
-    return url.toString();
+    // Match Concept2 docs encoding (keep commas/colons in scope readable).
+    const q = [
+      `client_id=${encodeURIComponent(this.config.clientId)}`,
+      `scope=${DEFAULT_SCOPE}`,
+      `response_type=code`,
+      `redirect_uri=${encodeURIComponent(this.config.redirectUri)}`,
+      `state=${encodeURIComponent(state)}`,
+    ].join('&');
+    return `${this.config.authUrl}?${q}`;
   }
 
   async connect(authorizationCode: string): Promise<Concept2Tokens> {

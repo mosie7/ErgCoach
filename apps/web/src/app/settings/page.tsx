@@ -12,17 +12,29 @@ type C2Status = {
   configured: boolean;
   useMock: boolean;
   mode: string;
+  redirectUri?: string;
+  clientIdPrefix?: string | null;
 };
+
+const FALLBACK_REDIRECT =
+  'https://main.d174rb114dlpeo.amplifyapp.com/api/concept2/callback';
 
 function SettingsInner() {
   const params = useSearchParams();
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<string | null>(null);
+  const [personalToken, setPersonalToken] = useState('');
+  const [copied, setCopied] = useState(false);
   const [c2, setC2] = useState<C2Status | null>(null);
   const [csv, setCsv] = useState(
     `date,distance,time,pace,hr,spm,type,title
 2026-09-01T07:00:00.000Z,12000,3096,129,138,18,UT2,CSV UT2 12k`,
   );
+
+  const redirectUri =
+    c2?.redirectUri ||
+    (typeof window !== 'undefined' ? `${window.location.origin}/api/concept2/callback` : FALLBACK_REDIRECT);
 
   function refreshStatus() {
     fetch('/api/concept2/status')
@@ -35,6 +47,16 @@ function SettingsInner() {
     refreshStatus();
   }, []);
 
+  async function copyRedirect() {
+    try {
+      await navigator.clipboard.writeText(redirectUri);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   async function importCsv() {
     setCsvStatus('Importing…');
     const res = await fetch('/api/import/csv', {
@@ -42,7 +64,7 @@ function SettingsInner() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ csv }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setCsvStatus(res.ok ? `Imported ${data.count} workouts` : data.error ?? 'Import failed');
   }
 
@@ -65,6 +87,23 @@ function SettingsInner() {
     setSyncStatus(
       `Imported ${data.importedCount} of ${data.fetchedCount ?? data.importedCount} fetched, skipped ${data.skippedDuplicates} duplicates (${data.mode})${errHint}`,
     );
+    refreshStatus();
+  }
+
+  async function savePersonalToken() {
+    setTokenStatus('Saving token…');
+    const res = await fetch('/api/concept2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accessToken: personalToken }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setTokenStatus(data.error ?? 'Could not save token');
+      return;
+    }
+    setPersonalToken('');
+    setTokenStatus('Connected with personal access token. Click Sync workouts.');
     refreshStatus();
   }
 
@@ -93,27 +132,13 @@ function SettingsInner() {
 
       {params.get('concept2') === 'error' ? (
         <div className="rounded-apple border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800">
-          <p>
-            Concept2 connection failed
-            {params.get('reason') ? `: ${params.get('reason')}` : ''}.
+          <p className="font-medium">Concept2 OAuth was rejected by Concept2</p>
+          <p className="mt-1">
+            That “Application Authorization” page means the redirect URI is not registered on your
+            Concept2 developer app
+            {params.get('reason') ? ` (also: ${params.get('reason')})` : ''}.
           </p>
-          <p className="mt-2">
-            In the{' '}
-            <a
-              className="underline"
-              href="https://log.concept2.com/developers"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Concept2 developer console
-            </a>
-            , your app redirect URI must be exactly:
-          </p>
-          <code className="mt-2 block break-all rounded bg-white/70 px-2 py-1 text-[12px] text-red-900">
-            {typeof window !== 'undefined'
-              ? `${window.location.origin}/api/concept2/callback`
-              : 'https://main.d174rb114dlpeo.amplifyapp.com/api/concept2/callback'}
-          </code>
+          <p className="mt-2">Easiest fix: use a personal access token below (no OAuth app needed).</p>
         </div>
       ) : null}
 
@@ -123,14 +148,6 @@ function SettingsInner() {
             <h2 className="section-title">Concept2 Logbook</h2>
             <p className="mt-1 text-[14px] text-apple-gray-500">
               OAuth connects <strong>your</strong> Logbook to <strong>your</strong> account only.
-            </p>
-            <p className="mt-2 text-[12px] text-apple-gray-400">
-              Required redirect URI:{' '}
-              <code className="break-all">
-                {typeof window !== 'undefined'
-                  ? `${window.location.origin}/api/concept2/callback`
-                  : '/api/concept2/callback'}
-              </code>
             </p>
           </div>
           <span
@@ -162,16 +179,36 @@ function SettingsInner() {
           </div>
         </div>
 
-        {!c2?.configured && !c2?.useMock ? (
-          <p className="text-[13px] text-amber-700">
-            Server missing CONCEPT2_CLIENT_ID / CONCEPT2_CLIENT_SECRET. Add them to enable live
-            OAuth.
-          </p>
-        ) : null}
+        <div className="rounded-apple border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950">
+          <p className="font-medium">Before OAuth Connect works</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>
+              Open{' '}
+              <a
+                className="underline"
+                href="https://log.concept2.com/developers/keys"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Concept2 API keys
+              </a>{' '}
+              and edit the app matching client id prefix{' '}
+              <code>{c2?.clientIdPrefix ?? '…'}</code>
+            </li>
+            <li>Add this redirect URI exactly (no trailing slash):</li>
+          </ol>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <code className="break-all rounded bg-white/80 px-2 py-1 text-[12px]">{redirectUri}</code>
+            <button type="button" className="btn-ghost text-[12px]" onClick={copyRedirect}>
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <p className="mt-2">Save in Concept2, then try Connect again.</p>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <a className="btn-primary" href="/api/concept2/connect">
-            {c2?.connected ? 'Reconnect Concept2' : 'Connect Concept2'}
+            {c2?.connected ? 'Reconnect via OAuth' : 'Connect via OAuth'}
           </a>
           <button
             className="btn-accent"
@@ -199,6 +236,32 @@ function SettingsInner() {
           </Link>
         </div>
         {syncStatus ? <p className="text-[13px] text-apple-gray-500">{syncStatus}</p> : null}
+
+        <div className="border-t border-apple-gray-100 pt-4 dark:border-apple-gray-800">
+          <h3 className="text-[14px] font-medium">Recommended: personal access token</h3>
+          <p className="mt-1 text-[13px] text-apple-gray-500">
+            Concept2 documents this for personal apps. In Logbook go to{' '}
+            <strong>Edit Profile → Applications → Concept2 Logbook API integration</strong>, create a
+            token, paste it here. No developer redirect URI required.
+          </p>
+          <input
+            className="input mt-3 font-mono text-[12px]"
+            type="password"
+            autoComplete="off"
+            placeholder="Paste Concept2 access token"
+            value={personalToken}
+            onChange={(e) => setPersonalToken(e.target.value)}
+          />
+          <button
+            className="btn-primary mt-3"
+            type="button"
+            disabled={personalToken.trim().length < 20}
+            onClick={savePersonalToken}
+          >
+            Save token & connect
+          </button>
+          {tokenStatus ? <p className="mt-2 text-[13px] text-apple-gray-500">{tokenStatus}</p> : null}
+        </div>
       </section>
 
       <section className="panel space-y-3 p-6">

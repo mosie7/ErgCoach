@@ -87,6 +87,61 @@ export async function completeConcept2OAuth(userId: string, code: string) {
   const useMock = shouldUseConcept2Mock();
   const client = createConcept2Client(getConcept2Config(), { useMock });
   const tokens = await client.connect(code);
+  return saveConcept2Tokens(userId, tokens, { mock: useMock, source: 'oauth' });
+}
+
+/**
+ * Personal-use path from Concept2 docs:
+ * Edit Profile → Applications → Concept2 Logbook API integration → long-lived token.
+ * Bypasses OAuth app redirect registration.
+ */
+export async function connectConcept2WithAccessToken(userId: string, accessToken: string) {
+  const token = accessToken.trim();
+  if (!token || token.length < 20) {
+    throw new Error('Paste a valid Concept2 access token');
+  }
+
+  const cfg = getConcept2Config();
+  const res = await fetch(`${cfg.apiBaseUrl}/users/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.c2logbook.v1+json',
+    },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(
+      `Concept2 rejected that token (${res.status})${detail ? `: ${detail.slice(0, 120)}` : ''}`,
+    );
+  }
+  const body = (await res.json()) as { data?: { id?: number | string; username?: string } };
+  const externalUserId =
+    body.data?.id != null
+      ? String(body.data.id)
+      : body.data?.username
+        ? String(body.data.username)
+        : null;
+
+  const tokens: Concept2Tokens = {
+    accessToken: token,
+    // Personal tokens are long-lived; skip refresh.
+    expiresAt: new Date(Date.now() + 365 * 86400_000),
+    scope: 'user:read,results:read',
+    tokenType: 'Bearer',
+  };
+
+  return saveConcept2Tokens(userId, tokens, {
+    mock: false,
+    source: 'personal_token',
+    externalUserId,
+  });
+}
+
+async function saveConcept2Tokens(
+  userId: string,
+  tokens: Concept2Tokens,
+  meta: { mock: boolean; source: string; externalUserId?: string | null },
+) {
   const connection = await prisma.dataConnection.upsert({
     where: { userId_provider: { userId, provider: 'concept2' } },
     create: {
@@ -96,18 +151,19 @@ export async function completeConcept2OAuth(userId: string, code: string) {
       refreshTokenEnc: tokens.refreshToken ?? null,
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
-      metadata: { mock: useMock },
+      externalUserId: meta.externalUserId ?? null,
+      metadata: { mock: meta.mock, source: meta.source },
     },
     update: {
       accessTokenEnc: encodeToken(tokens),
       refreshTokenEnc: tokens.refreshToken ?? null,
       tokenExpiresAt: tokens.expiresAt ?? null,
       scope: tokens.scope ?? null,
-      metadata: { mock: useMock },
+      externalUserId: meta.externalUserId ?? null,
+      metadata: { mock: meta.mock, source: meta.source },
     },
   });
 
-  // Force next sync to pull full history after reconnect.
   try {
     await prisma.dataConnection.update({
       where: { id: String(connection.id) },
