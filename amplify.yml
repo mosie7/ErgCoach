@@ -1,48 +1,46 @@
 version: 1
-applications:
-  - appRoot: apps/web
-    backend:
-      phases:
-        build:
-          commands:
-            - cd ../..
-            - npm install -g pnpm@10.33.3
-            - pnpm install --frozen-lockfile
-            - pnpm rebuild esbuild
-            - export PATH="$PWD/node_modules/.bin:$PATH"
-            - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
-            - cp amplify_outputs.json apps/web/amplify_outputs.json || true
-    frontend:
-      phases:
-        preBuild:
-          commands:
-            # Backend phase already installed workspace deps in this build env.
-            - cd ../..
-            - export PATH="$PWD/node_modules/.bin:$PATH"
-            - export NODE_OPTIONS="--max-old-space-size=8192"
-            - test -f amplify_outputs.json && cp amplify_outputs.json apps/web/amplify_outputs.json || true
-            - pnpm --filter @ergcoach/shared build
-            - pnpm --filter @ergcoach/training-engine build
-            - pnpm --filter @ergcoach/concept2 build
-            - pnpm --filter @ergcoach/ai-coach build
-            - pnpm --filter @ergcoach/database build
-            - pnpm --filter @ergcoach/billing build
-            - pnpm --filter @ergcoach/services build
-        build:
-          commands:
-            - cd ../..
-            - export NODE_OPTIONS="--max-old-space-size=8192"
-            - export PATH="$PWD/node_modules/.bin:$PATH"
-            - env | grep -e NEXT_PUBLIC_ -e OPENAI_ -e CONCEPT2_ -e STRIPE_ -e BILLING_ >> apps/web/.env.production || true
-            - pnpm --filter @ergcoach/web build
-            - ls -la apps/web/.next | head -20
-            - du -sh apps/web/.next
-      artifacts:
-        baseDirectory: .next
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - ../../node_modules/**/*
-          - .next/cache/**/*
-          - ../../.pnpm-store/**/*
+# Requires branch env AMPLIFY_MONOREPO_APP_ROOT=apps/web (paths below are relative to that).
+backend:
+  phases:
+    build:
+      commands:
+        - cd ../..
+        - npm install -g pnpm@10.33.3
+        - pnpm install --frozen-lockfile
+        - pnpm rebuild esbuild
+        - export PATH="$PWD/node_modules/.bin:$PATH"
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - cp amplify_outputs.json apps/web/amplify_outputs.json || true
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd ../..
+        - export PATH="$PWD/node_modules/.bin:$PATH"
+        - export NODE_OPTIONS="--max-old-space-size=8192"
+        - test -f amplify_outputs.json && cp amplify_outputs.json apps/web/amplify_outputs.json || true
+        - pnpm --filter @ergcoach/shared build
+        - pnpm --filter @ergcoach/training-engine build
+        - pnpm --filter @ergcoach/concept2 build
+        - pnpm --filter @ergcoach/ai-coach build
+        - pnpm --filter @ergcoach/database build
+        - pnpm --filter @ergcoach/billing build
+        - pnpm --filter @ergcoach/services build
+    build:
+      commands:
+        - cd ../..
+        - export NODE_OPTIONS="--max-old-space-size=8192"
+        - export PATH="$PWD/node_modules/.bin:$PATH"
+        - env | grep -e NEXT_PUBLIC_ -e OPENAI_ -e CONCEPT2_ -e STRIPE_ -e BILLING_ >> apps/web/.env.production || true
+        - pnpm --filter @ergcoach/web build
+        - ls -la apps/web/.next | head -20
+        - du -sh apps/web/.next
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - ../../node_modules/**/*
+      - .next/cache/**/*
+      - ../../.pnpm-store/**/*
