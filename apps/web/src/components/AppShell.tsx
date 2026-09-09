@@ -6,6 +6,8 @@ const nav = [
   { href: '/workouts/new', label: 'Log workout' },
   { href: '/coach', label: 'Coach chat' },
   { href: '/review', label: 'Weekly review' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/billing', label: 'Billing' },
   { href: '/settings', label: 'Settings' },
 ];
 

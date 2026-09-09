@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     '@ergcoach/training-engine',
     '@ergcoach/concept2',
     '@ergcoach/ai-coach',
+    '@ergcoach/billing',
     '@ergcoach/services',
   ],
   experimental: {

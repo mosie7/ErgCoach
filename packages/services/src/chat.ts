@@ -1,5 +1,6 @@
 import { prisma } from '@ergcoach/database';
 import { generateChatReply } from '@ergcoach/ai-coach';
+import { requireAthleteEntitlement } from './entitlements.js';
 import {
   assessGoalReadiness,
   getActiveGoal,
@@ -9,14 +10,16 @@ import {
   getProgressTrends,
   getRecentWorkouts,
   getTrainingPlan,
-  getWorkout,
 } from './athlete.js';
 import { runPostWorkoutAnalysis } from './analysis.js';
 
 /**
  * Tool-routed coach chat — retrieves only relevant slices, never the full DB.
+ * Requires Pro entitlement (ai_coach_chat).
  */
 export async function coachChat(athleteId: string, question: string) {
+  await requireAthleteEntitlement(athleteId, 'ai_coach_chat');
+
   const q = question.toLowerCase();
   const toolsUsed: string[] = [];
   const evidence: Record<string, unknown> = {};

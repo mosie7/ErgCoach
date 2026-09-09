@@ -1,5 +1,5 @@
 {
-  "name": "@ergcoach/services",
+  "name": "@ergcoach/billing",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -17,19 +17,17 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --ext .ts || true",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@ergcoach/ai-coach": "workspace:*",
-    "@ergcoach/billing": "workspace:*",
-    "@ergcoach/concept2": "workspace:*",
     "@ergcoach/database": "workspace:*",
     "@ergcoach/shared": "workspace:*",
-    "@ergcoach/training-engine": "workspace:*"
+    "stripe": "^17.7.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/node": "^22.13.10",
     "typescript": "^5.8.2",
-    "vitest": "^3.0.9",
-    "@types/node": "^22.13.10"
+    "vitest": "^3.0.9"
   }
 }

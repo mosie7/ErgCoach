@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type Message = { role: string; content: string };
 
@@ -9,8 +10,18 @@ export default function CoachPage() {
   const [question, setQuestion] = useState('');
   const [pending, setPending] = useState(false);
   const [tools, setTools] = useState<string[]>([]);
+  const [locked, setLocked] = useState(false);
+  const [accessLoaded, setAccessLoaded] = useState(false);
 
   useEffect(() => {
+    fetch('/api/billing/status')
+      .then((r) => r.json())
+      .then((data) => {
+        setLocked(!(data.access?.hasAiCoach ?? false));
+        setAccessLoaded(true);
+      })
+      .catch(() => setAccessLoaded(true));
+
     fetch('/api/chat')
       .then((r) => r.json())
       .then((data) => {
@@ -21,7 +32,7 @@ export default function CoachPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || locked) return;
     const q = question.trim();
     setQuestion('');
     setMessages((m) => [...m, { role: 'user', content: q }]);
@@ -33,6 +44,17 @@ export default function CoachPage() {
     });
     setPending(false);
     const data = await res.json();
+    if (res.status === 402 || data.code === 'ENTITLEMENT_REQUIRED') {
+      setLocked(true);
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'assistant',
+          content: 'Pro Coach subscription required. Upgrade to unlock AI chat.',
+        },
+      ]);
+      return;
+    }
     if (res.ok) {
       setMessages((m) => [...m, { role: 'assistant', content: data.reply }]);
       setTools(data.toolsUsed ?? []);
@@ -53,13 +75,43 @@ export default function CoachPage() {
     'What should I concentrate on this week?',
   ];
 
+  if (accessLoaded && locked) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <div>
+          <p className="label">AI coach</p>
+          <h1 className="font-display text-3xl font-semibold">Pro feature</h1>
+          <p className="mt-2 text-sm text-ink-400">
+            Coach chat is included in the Pro Coach subscription. Free users keep workout logging
+            and objective metrics.
+          </p>
+        </div>
+        <section className="panel space-y-4 p-6">
+          <p className="text-ink-200">
+            Upgrade to ask questions about progress, marathon pace realism, and session execution —
+            backed by your training evidence.
+          </p>
+          <div className="flex gap-2">
+            <Link href="/pricing" className="btn-primary">
+              View Pro plans
+            </Link>
+            <Link href="/billing" className="btn-ghost">
+              Billing
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div>
         <p className="label">AI coach</p>
         <h1 className="font-display text-3xl font-semibold">Ask your coach</h1>
         <p className="mt-1 text-sm text-ink-400">
-          Questions are answered from retrieved training context — not the entire database.
+          Questions are answered from retrieved training context — not the entire database. Included
+          with Pro.
         </p>
       </div>
 

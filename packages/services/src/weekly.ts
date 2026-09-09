@@ -2,6 +2,7 @@ import { prisma } from '@ergcoach/database';
 import { generateWeeklyNarrative } from '@ergcoach/ai-coach';
 import { calculateWeeklyVolume } from '@ergcoach/training-engine';
 import { formatDistance, formatDuration } from '@ergcoach/shared';
+import { athleteHasEntitlement } from './entitlements.js';
 
 function startOfUtcWeek(date: Date): Date {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -58,7 +59,10 @@ export async function generateWeeklyReview(athleteId: string, referenceDate = ne
     const sa = (a.analysis?.aiAnalysis as { sessionVerdict?: string } | null)?.sessionVerdict;
     const rank = (v?: string) =>
       v === 'excellent' ? 4 : v === 'successful' ? 3 : v === 'partial' ? 2 : 1;
-    return rank(sa) - rank((b.analysis?.aiAnalysis as { sessionVerdict?: string } | null)?.sessionVerdict);
+    return (
+      rank(sa) -
+      rank((b.analysis?.aiAnalysis as { sessionVerdict?: string } | null)?.sessionVerdict)
+    );
   })[workouts.length - 1];
 
   const positiveSignals = workouts.flatMap((w) => {
@@ -81,7 +85,8 @@ export async function generateWeeklyReview(athleteId: string, referenceDate = ne
     intensityBreakdown: volume.intensityBreakdown,
     strongestWorkout: strongest?.title ?? strongest?.id ?? 'n/a',
     biggestPositiveSignal: positiveSignals[0] ?? 'Steady training consistency',
-    potentialConcern: concerns[0] ?? (missed > 0 ? `${missed} planned sessions missed` : 'None flagged'),
+    potentialConcern:
+      concerns[0] ?? (missed > 0 ? `${missed} planned sessions missed` : 'None flagged'),
     progressTowardGoal: goal
       ? `Active goal ${goal.eventType} @ target pace ${goal.targetPaceSeconds500m}s/500m`
       : 'No active goal',
@@ -95,9 +100,48 @@ export async function generateWeeklyReview(athleteId: string, referenceDate = ne
     },
   };
 
+  const canUseAi = await athleteHasEntitlement(athleteId, 'ai_weekly_review');
+
+  if (!canUseAi) {
+    const lockedNarrative = {
+      narrative:
+        'Weekly totals are available on Free. Upgrade to Pro Coach for an AI narrative and coaching emphasis for next week.',
+      strongestWorkout: String(deterministicSummary.strongestWorkout),
+      biggestPositiveSignal: String(deterministicSummary.biggestPositiveSignal),
+      potentialConcern: String(deterministicSummary.potentialConcern),
+      recommendedEmphasis: deterministicSummary.recommendedEmphasis,
+      confidence: 'low' as const,
+    };
+    return prisma.weeklyReview.upsert({
+      where: { athleteId_weekStart: { athleteId, weekStart } },
+      create: {
+        athleteId,
+        weekStart,
+        weekEnd,
+        summary: {
+          ...deterministicSummary,
+          narrative: lockedNarrative,
+          modelVersion: 'metrics-only',
+          aiLocked: true,
+        } as object,
+        aiNarrative: lockedNarrative.narrative,
+      },
+      update: {
+        weekEnd,
+        summary: {
+          ...deterministicSummary,
+          narrative: lockedNarrative,
+          modelVersion: 'metrics-only',
+          aiLocked: true,
+        } as object,
+        aiNarrative: lockedNarrative.narrative,
+      },
+    });
+  }
+
   const { narrative, modelVersion } = await generateWeeklyNarrative(deterministicSummary);
 
-  const saved = await prisma.weeklyReview.upsert({
+  return prisma.weeklyReview.upsert({
     where: {
       athleteId_weekStart: { athleteId, weekStart },
     },
@@ -114,6 +158,4 @@ export async function generateWeeklyReview(athleteId: string, referenceDate = ne
       aiNarrative: narrative.narrative,
     },
   });
-
-  return saved;
 }

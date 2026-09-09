@@ -232,13 +232,19 @@ export default async function DashboardPage() {
             Ask about progress, execution, or marathon pace realism
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-ink-400">
+            Included with <Link href="/pricing" className="text-accent-soft hover:underline">Pro Coach</Link>.
             The coach retrieves your goal, recent workouts, and trends — it does not dump the whole
-            database into the model. OpenAI is used only when <code className="text-ink-300">OPENAI_API_KEY</code> is set.
+            database into the model.
           </p>
         </div>
-        <Link href="/coach" className="btn-primary shrink-0">
-          Open coach chat
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link href="/coach" className="btn-primary">
+            Open coach chat
+          </Link>
+          <Link href="/pricing" className="btn-ghost">
+            Plans
+          </Link>
+        </div>
       </section>
 
       <section className="panel p-5">

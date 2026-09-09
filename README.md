@@ -142,6 +142,36 @@ Example questions:
 
 The chat retrieves only relevant evidence (goal, readiness, recent workouts, trends) before calling OpenAI. Set `OPENAI_API_KEY` for live coaching replies.
 
+**Pro subscription required** for AI coach chat, AI workout reports, and AI weekly reviews. See [Pricing](/pricing).
+
+## Subscriptions (Stripe)
+
+Users pay ErgCoach for Pro Coach access. Your OpenAI key stays on the server.
+
+| Plan | Access |
+|------|--------|
+| Free | Workouts, deterministic metrics, dashboard |
+| Pro | + AI coach chat, AI workout analysis, AI weekly review |
+
+### Stripe setup
+
+1. Create a Product + monthly Price in [Stripe Dashboard](https://dashboard.stripe.com)
+2. Set env vars:
+
+```
+BILLING_ENABLED=true
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+3. Webhook endpoint: `POST /api/billing/webhook`  
+   Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`
+
+4. Local tip: seeded demo user has **complimentary Pro**. Set `BILLING_ENABLED=false` to unlock AI for everyone in local/dev.
+
+Pages: `/pricing`, `/billing` (Checkout + Customer Portal).
+
 ## Deploy to AWS
 
 Infrastructure as code: [`infra/README.md`](./infra/README.md)

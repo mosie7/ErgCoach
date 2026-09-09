@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ergcoach/ai-coach": "workspace:*",
+    "@ergcoach/billing": "workspace:*",
     "@ergcoach/concept2": "workspace:*",
     "@ergcoach/database": "workspace:*",
     "@ergcoach/services": "workspace:*",
