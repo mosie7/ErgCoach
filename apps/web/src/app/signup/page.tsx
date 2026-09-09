@@ -15,7 +15,11 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
 
   async function provisionAndGo(path: string) {
-    await fetch('/api/auth/session', { method: 'POST' });
+    const sessionRes = await fetch('/api/auth/session', { method: 'POST' });
+    if (!sessionRes.ok) {
+      const body = (await sessionRes.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error || 'Account created, but profile setup failed. Try signing in.');
+    }
     router.push(path);
     router.refresh();
   }
