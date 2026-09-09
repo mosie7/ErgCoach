@@ -16,10 +16,8 @@ applications:
       phases:
         preBuild:
           commands:
+            # Backend phase already installed workspace deps in this build env.
             - cd ../..
-            - npm install -g pnpm@10.33.3
-            - pnpm install --frozen-lockfile
-            - pnpm rebuild esbuild
             - export PATH="$PWD/node_modules/.bin:$PATH"
             - export NODE_OPTIONS="--max-old-space-size=8192"
             - test -f amplify_outputs.json && cp amplify_outputs.json apps/web/amplify_outputs.json || true
@@ -34,6 +32,7 @@ applications:
           commands:
             - cd ../..
             - export NODE_OPTIONS="--max-old-space-size=8192"
+            - export PATH="$PWD/node_modules/.bin:$PATH"
             - env | grep -e NEXT_PUBLIC_ -e OPENAI_ -e CONCEPT2_ -e STRIPE_ -e BILLING_ >> apps/web/.env.production || true
             - pnpm --filter @ergcoach/web build
             - ls -la apps/web/.next | head -20
