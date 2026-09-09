@@ -14,7 +14,9 @@ pnpm db:migrate:dev
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → **Get started** → create your account → **Programs** (2k / 5k / 10k / half / marathon / 100k) → **Connect Concept2**.
+Open [http://localhost:3000](http://localhost:3000) → **Get started** → create your account → **Programs** (Concept2 public plans for 2k / 5k / half / marathon; 10k & 100k coming soon) → **Connect Concept2**.
+
+Marathon program follows the [Concept2 Marathon Row Training Plan](https://www.concept2.com/training/plans/marathon-row-training-plan) with weeks 5 and 9 AT sessions replaced by 5k time trials for pace recalibration.
 
 ## Concept2 (your Logbook)
 
