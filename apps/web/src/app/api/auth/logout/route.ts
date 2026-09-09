@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getAuthProvider } from '@ergcoach/services';
-import { cookies } from 'next/headers';
 
+/**
+ * Cookie clearing helper. Prefer client `signOut()` from aws-amplify/auth
+ * (LogoutButton). This clears any legacy ergcoach_session cookie.
+ */
 export async function POST() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('ergcoach_session')?.value;
-  if (token) {
-    await getAuthProvider().logout(token);
-  }
   const res = NextResponse.json({ ok: true });
   res.cookies.set('ergcoach_session', '', {
     httpOnly: true,

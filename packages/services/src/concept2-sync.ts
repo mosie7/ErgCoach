@@ -120,14 +120,16 @@ export async function syncConcept2Workouts(userId: string, athleteId: string) {
     where: { athleteId, source: 'concept2' },
     select: { externalId: true },
   });
-  const known = new Set(existing.map((e) => e.externalId).filter((id): id is string => !!id));
+  const known = new Set<string>(
+    existing.map((e: { externalId?: string | null }) => e.externalId).filter((id): id is string => !!id),
+  );
 
   const result = await client.syncWorkouts({
     updatedAfter: connection?.lastSyncAt ?? undefined,
     knownExternalIds: known,
   });
 
-  const imported = [];
+  const imported: Awaited<ReturnType<typeof createManualWorkout>>[] = [];
   for (const w of result.imported) {
     const created = await createManualWorkout({
       athleteId,

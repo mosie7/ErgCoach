@@ -121,7 +121,7 @@ export async function generateWorkoutAnalysis(
     return { analysis: heuristicWorkoutAnalysis(evidence), modelVersion: 'heuristic-v1' };
   }
 
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+  const model = process.env.OPENAI_MODEL ?? 'gpt-5';
   const response = await client.chat.completions.create({
     model,
     temperature: 0.3,
@@ -161,7 +161,7 @@ export async function generateChatReply(payload: ChatContextPayload): Promise<st
       JSON.stringify(summarizeEvidence(payload.evidence))
     );
   }
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+  const model = process.env.OPENAI_MODEL ?? 'gpt-5';
   const response = await client.chat.completions.create({
     model,
     temperature: 0.4,
@@ -197,7 +197,7 @@ export async function generateWeeklyNarrative(
     return { narrative: fallback, modelVersion: 'heuristic-v1' };
   }
 
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+  const model = process.env.OPENAI_MODEL ?? 'gpt-5';
   const response = await client.chat.completions.create({
     model,
     temperature: 0.3,

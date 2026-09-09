@@ -171,7 +171,7 @@ export function parseWorkoutCsv(csv: string): Array<Record<string, string>> {
 
 export async function importWorkoutsFromCsv(athleteId: string, csv: string) {
   const rows = parseWorkoutCsv(csv);
-  const created = [];
+  const created: Awaited<ReturnType<typeof createManualWorkout>>[] = [];
   for (const row of rows) {
     const distanceMeters = Number(row['distance'] ?? row['distance_m'] ?? row['dist'] ?? 0);
     const durationSeconds = Number(row['time'] ?? row['duration'] ?? row['seconds'] ?? 0);

@@ -1,25 +1,23 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@ergcoach/database';
-
-export const dynamic = 'force-dynamic';
+import { configureAmplify, getDataClient } from '@ergcoach/database';
+import { useIamDataClient } from '@/lib/amplify-data-iam';
 
 export async function GET() {
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({
-      status: 'ok',
-      service: 'ergcoach-web',
-      db: 'up',
-      time: new Date().toISOString(),
-    });
+    useIamDataClient();
+    configureAmplify();
+    const client = getDataClient();
+    const userModel = client.models.User;
+    if (!userModel) {
+      return NextResponse.json({ ok: false, error: 'User model missing' }, { status: 503 });
+    }
+    await userModel.list({});
+    return NextResponse.json({ ok: true, data: 'amplify' });
   } catch (e) {
     return NextResponse.json(
       {
-        status: 'degraded',
-        service: 'ergcoach-web',
-        db: 'down',
-        error: e instanceof Error ? e.message : 'db check failed',
-        time: new Date().toISOString(),
+        ok: false,
+        error: e instanceof Error ? e.message : 'health check failed',
       },
       { status: 503 },
     );

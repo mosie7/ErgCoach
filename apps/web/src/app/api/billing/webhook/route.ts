@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { handleStripeWebhook } from '@ergcoach/billing';
+import { useIamDataClient } from '@/lib/amplify-data-iam';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  useIamDataClient();
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
     return NextResponse.json({ error: 'Missing stripe-signature' }, { status: 400 });

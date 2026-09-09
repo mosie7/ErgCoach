@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { handleConcept2Webhook } from '@ergcoach/services';
+import { useIamDataClient } from '@/lib/amplify-data-iam';
 
 export async function POST(req: Request) {
+  useIamDataClient();
   const payload = await req.json().catch(() => ({}));
   const headers: Record<string, string> = {};
   req.headers.forEach((v, k) => {

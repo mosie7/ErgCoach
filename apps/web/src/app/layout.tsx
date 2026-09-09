@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppShell } from '@/components/AppShell';
+import { AmplifyProvider } from '@/lib/amplify-client';
 
 export const metadata: Metadata = {
   title: 'ErgCoach',
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="antialiased">
-        <AppShell>{children}</AppShell>
+        <AmplifyProvider>
+          <AppShell>{children}</AppShell>
+        </AmplifyProvider>
       </body>
     </html>
   );

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { signIn } from 'aws-amplify/auth';
+import '@/lib/amplify-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,22 +16,21 @@ export default function LoginPage() {
     setPending(true);
     setError(null);
     const form = new FormData(e.currentTarget);
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: form.get('email'),
-        password: form.get('password'),
-      }),
-    });
-    setPending(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? 'Login failed');
+    try {
+      await signIn({
+        username: String(form.get('email') ?? '').toLowerCase(),
+        password: String(form.get('password') ?? ''),
+      });
+      // Ensure DynamoDB User/Athlete rows exist (post-confirm + race safety)
+      await fetch('/api/auth/session', { method: 'POST' });
+      router.push('/');
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+      setPending(false);
       return;
     }
-    router.push('/');
-    router.refresh();
+    setPending(false);
   }
 
   return (

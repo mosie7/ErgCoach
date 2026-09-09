@@ -137,7 +137,7 @@ export async function getCurrentTrainingContext(athleteId: string) {
 
   const typeTrends = buildTypeTrends(blockWorkouts);
 
-  let readiness = null;
+  let readiness: ReturnType<typeof estimateMarathonReadiness> | null = null;
   const targetPace =
     activeBlock?.targetPaceSeconds500m ?? activeGoal?.targetPaceSeconds500m ?? null;
   if (targetPace != null) {

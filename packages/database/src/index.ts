@@ -1,16 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+export { prisma, Prisma, type PrismaCompatClient } from './prisma-compat.js';
+export {
+  configureAmplify,
+  getDataClient,
+  setDataClient,
+  loadAmplifyOutputs,
+  type DataClient,
+} from './client.js';
+export * from './types.js';
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+import { prisma } from './prisma-compat.js';
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-  });
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
-
-export * from '@prisma/client';
-export { prisma as db };
+/** Alias for prisma compat client */
+export const db = prisma;
