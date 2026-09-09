@@ -53,6 +53,7 @@ jobs:
       - run: pnpm --filter @ergcoach/training-engine test
       - run: pnpm --filter @ergcoach/concept2 test
       - run: pnpm --filter @ergcoach/ai-coach test
+      - run: pnpm --filter @ergcoach/billing test
 
   terraform:
     needs: test
