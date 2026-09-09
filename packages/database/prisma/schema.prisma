@@ -1,0 +1,406 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Sport {
+  rower
+  bikeerg
+  skierg
+  strength
+  other
+}
+
+enum EventType {
+  two_k
+  five_k
+  ten_k
+  half_marathon
+  marathon
+  general_endurance
+  custom
+}
+
+enum GoalStatus {
+  active
+  completed
+  abandoned
+  paused
+}
+
+enum WorkoutSource {
+  manual
+  concept2
+  csv
+  garmin
+  strava
+  apple_health
+  other
+}
+
+enum WorkoutClassification {
+  UT2
+  UT1
+  AT
+  TR
+  AN
+  recovery
+  benchmark
+  race
+  strength
+  unknown
+}
+
+enum PreferredUnits {
+  metric
+  imperial
+}
+
+enum Sex {
+  male
+  female
+  other
+  unspecified
+}
+
+enum HrZoneMethod {
+  max_hr
+  lthr
+  manual
+}
+
+enum AuthProvider {
+  local
+  cognito
+  auth0
+  clerk
+}
+
+enum ConfidenceLevel {
+  low
+  moderate
+  high
+}
+
+enum SessionVerdict {
+  excellent
+  successful
+  partial
+  poor
+  unknown
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  displayName  String
+  passwordHash String?
+  authProvider AuthProvider @default(local)
+  externalAuthId String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  athleteProfile AthleteProfile?
+  authSessions   AuthSession[]
+  dataConnections DataConnection[]
+
+  @@index([authProvider, externalAuthId])
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AthleteProfile {
+  id                       String         @id @default(cuid())
+  userId                   String         @unique
+  dateOfBirth              DateTime?
+  age                      Int?
+  sex                      Sex?
+  weightKg                 Float?
+  maxHeartRate             Int?
+  restingHeartRate         Int?
+  lactateThresholdHeartRate Int?
+  preferredUnits           PreferredUnits @default(metric)
+  hrZoneMethod             HrZoneMethod   @default(lthr)
+  notes                    String?
+  isSyntheticSeed          Boolean        @default(false)
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals          Goal[]
+  trainingPlans  TrainingPlan[]
+  workouts       Workout[]
+  hrZones        HeartRateZone[]
+  athleteTrends  AthleteTrend[]
+  weeklyReviews  WeeklyReview[]
+}
+
+model HeartRateZone {
+  id        String   @id @default(cuid())
+  athleteId String
+  name      String
+  zoneIndex Int
+  minBpm    Int
+  maxBpm    Int
+  method    HrZoneMethod
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, zoneIndex])
+  @@index([athleteId])
+}
+
+model Goal {
+  id             String     @id @default(cuid())
+  athleteId      String
+  sport          Sport
+  eventType      EventType
+  targetDate     DateTime?
+  targetDistance Float?
+  targetTimeSeconds Int?
+  targetPaceSeconds500m Float?
+  status         GoalStatus @default(active)
+  notes          String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  trainingPlans TrainingPlan[]
+
+  @@index([athleteId, status])
+}
+
+model TrainingPlan {
+  id        String   @id @default(cuid())
+  athleteId String
+  goalId    String?
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete         AthleteProfile  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  goal            Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  plannedWorkouts PlannedWorkout[]
+
+  @@index([athleteId])
+  @@index([goalId])
+}
+
+model PlannedWorkout {
+  id              String                @id @default(cuid())
+  trainingPlanId  String
+  scheduledDate   DateTime
+  workoutType     WorkoutClassification
+  title           String
+  targetDurationSeconds Int?
+  targetDistanceMeters  Float?
+  targetPaceMinSeconds500m Float?
+  targetPaceMaxSeconds500m Float?
+  targetHrMin     Int?
+  targetHrMax     Int?
+  targetSpmMin    Float?
+  targetSpmMax    Float?
+  instructions    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trainingPlan TrainingPlan @relation(fields: [trainingPlanId], references: [id], onDelete: Cascade)
+  workouts     Workout[]
+
+  @@index([trainingPlanId, scheduledDate])
+}
+
+model Workout {
+  id                      String                @id @default(cuid())
+  athleteId               String
+  source                  WorkoutSource
+  externalId              String?
+  plannedWorkoutId        String?
+  startedAt               DateTime
+  sport                   Sport                 @default(rower)
+  workoutType             WorkoutClassification @default(unknown)
+  detectedClassification  WorkoutClassification?
+  title                   String?
+  durationSeconds         Int
+  distanceMeters          Float
+  averagePaceSeconds500m  Float?
+  averageWatts            Float?
+  averageHeartRate        Float?
+  maxHeartRate            Float?
+  averageStrokeRate       Float?
+  rawData                 Json?
+  isSyntheticSeed         Boolean               @default(false)
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  athlete          AthleteProfile      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  plannedWorkout   PlannedWorkout?     @relation(fields: [plannedWorkoutId], references: [id], onDelete: SetNull)
+  splits           WorkoutSplit[]
+  strokes          WorkoutStroke[]
+  subjectiveFeedback SubjectiveFeedback?
+  analysis         WorkoutAnalysis?
+
+  @@unique([athleteId, source, externalId])
+  @@index([athleteId, startedAt])
+  @@index([athleteId, workoutType])
+  @@index([source, externalId])
+}
+
+model WorkoutSplit {
+  id               String  @id @default(cuid())
+  workoutId        String
+  index            Int
+  durationSeconds  Float
+  distanceMeters   Float
+  paceSeconds500m  Float?
+  watts            Float?
+  heartRate        Float?
+  strokeRate       Float?
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutId, index])
+  @@index([workoutId])
+}
+
+model WorkoutStroke {
+  id              String @id @default(cuid())
+  workoutId       String
+  index           Int
+  timestampOffset Float?
+  paceSeconds500m Float?
+  watts           Float?
+  heartRate       Float?
+  strokeRate      Float?
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutId, index])
+  @@index([workoutId])
+}
+
+model SubjectiveFeedback {
+  id           String   @id @default(cuid())
+  workoutId    String   @unique
+  rpe          Int?
+  fatigue      Int?
+  soreness     Int?
+  sleepQuality Int?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+}
+
+model WorkoutAnalysis {
+  id                 String          @id @default(cuid())
+  workoutId          String          @unique
+  calculatedMetrics  Json
+  aiAnalysis         Json?
+  classification     WorkoutClassification?
+  confidence         ConfidenceLevel?
+  sessionVerdict     SessionVerdict?
+  generatedAt        DateTime        @default(now())
+  modelVersion       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+}
+
+model AthleteTrend {
+  id        String   @id @default(cuid())
+  athleteId String
+  metricKey String
+  periodStart DateTime
+  periodEnd   DateTime
+  value       Float
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  athlete AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, metricKey, periodEnd])
+}
+
+model WeeklyReview {
+  id          String   @id @default(cuid())
+  athleteId   String
+  weekStart   DateTime
+  weekEnd     DateTime
+  summary     Json
+  aiNarrative String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  athlete AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, weekStart])
+  @@index([athleteId, weekStart])
+}
+
+/// External data source credentials (Concept2, future Garmin/Strava, etc.)
+model DataConnection {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String
+  accessTokenEnc String?
+  refreshTokenEnc String?
+  tokenExpiresAt DateTime?
+  scope          String?
+  externalUserId String?
+  metadata       Json?
+  lastSyncAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([provider])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventType   String
+  payload     Json
+  processedAt DateTime?
+  status      String   @default("pending")
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([provider, status, createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  athleteId String
+  role      String
+  content   String
+  toolCalls Json?
+  createdAt DateTime @default(now())
+
+  @@index([athleteId, createdAt])
+}

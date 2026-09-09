@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ergcoach-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ergcoach
+      POSTGRES_PASSWORD: ergcoach
+      POSTGRES_DB: ergcoach
+    ports:
+      - "5432:5432"
+    volumes:
+      - ergcoach_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ergcoach -d ergcoach"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ergcoach_pgdata:
