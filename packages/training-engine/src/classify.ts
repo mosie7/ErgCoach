@@ -52,6 +52,18 @@ export function classifyWorkout(input: ClassificationInput): ClassificationResul
 
   if (avgHr != null && lthr != null) {
     const ratio = avgHr / lthr;
+    // Long, low-SPM work is UT2 even if HR sits a bit higher in the aerobic band
+    if (
+      distance >= 10000 &&
+      (spm == null || spm <= 20) &&
+      ratio < 0.92 &&
+      durationMin >= 40
+    ) {
+      reasons.push(
+        `Long low-SPM row (${Math.round(distance / 1000)}km, SPM ${spm ?? 'n/a'}) at ${Math.round(ratio * 100)}% LTHR — UT2`,
+      );
+      return { classification: 'UT2', confidence: 'moderate', reasons };
+    }
     if (ratio < 0.82 && durationMin >= 30 && (spm == null || spm <= 20)) {
       reasons.push(`Avg HR ${avgHr} is ~${Math.round(ratio * 100)}% of LTHR — UT2 range`);
       return { classification: 'UT2', confidence: 'moderate', reasons };

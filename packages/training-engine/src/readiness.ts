@@ -180,10 +180,10 @@ export function estimateMarathonReadiness(
   const spread = confidence === 'moderate' ? 1.6 : 2.8;
 
   const primaryLimiter =
-    limitingEvidence[0]?.split(' — ')[0] ??
     limitingEvidence[0] ??
-    missingEvidence[0] ??
-    'Insufficient limiting-factor evidence';
+    (missingEvidence[0]
+      ? `Missing evidence: ${missingEvidence[0]}`
+      : 'No clear limiter identified from current evidence');
 
   return {
     score,
