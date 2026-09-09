@@ -81,6 +81,20 @@ function SettingsInner() {
         </div>
       ) : null}
 
+      {params.get('concept2') === 'error' ? (
+        <div className="rounded-apple border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800">
+          Concept2 connection failed
+          {params.get('reason') ? `: ${params.get('reason')}` : ''}. Confirm the Concept2 app
+          redirect URI is{' '}
+          <code className="text-[12px]">
+            {typeof window !== 'undefined'
+              ? `${window.location.origin}/api/concept2/callback`
+              : '/api/concept2/callback'}
+          </code>
+          .
+        </div>
+      ) : null}
+
       <section className="panel space-y-4 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

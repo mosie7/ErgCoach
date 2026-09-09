@@ -6,12 +6,16 @@ import {
 } from '@ergcoach/concept2';
 import { createManualWorkout } from './workouts.js';
 
+function appBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+}
+
 function getConcept2Config(): Concept2OAuthConfig {
   return {
     clientId: process.env.CONCEPT2_CLIENT_ID ?? '',
     clientSecret: process.env.CONCEPT2_CLIENT_SECRET ?? '',
     redirectUri:
-      process.env.CONCEPT2_REDIRECT_URI ?? 'http://localhost:3000/api/concept2/callback',
+      process.env.CONCEPT2_REDIRECT_URI ?? `${appBaseUrl()}/api/concept2/callback`,
     authUrl: process.env.CONCEPT2_AUTH_URL ?? 'https://log.concept2.com/oauth/authorize',
     tokenUrl: process.env.CONCEPT2_TOKEN_URL ?? 'https://log.concept2.com/oauth/access_token',
     apiBaseUrl: process.env.CONCEPT2_API_BASE_URL ?? 'https://log.concept2.com/api',
