@@ -128,3 +128,53 @@ ErgCoach is training analytics software, **not medical advice**. Unusual health-
 ## Product principle
 
 Application code calculates pace, watts, drift, volume, zones, compliance, comparisons, and readiness evidence. The LLM interprets those calculations in context of goal, plan, and history.
+
+## AI coach chat
+
+Open **Coach chat** in the nav (`/coach`) or use the dashboard “Open coach chat” card.
+
+Example questions:
+
+- How am I progressing?
+- Was today’s UT1 good?
+- Can I hold 2:00 pace for a marathon?
+- What’s currently holding me back?
+
+The chat retrieves only relevant evidence (goal, readiness, recent workouts, trends) before calling OpenAI. Set `OPENAI_API_KEY` for live coaching replies.
+
+## Deploy to AWS
+
+Infrastructure as code: [`infra/README.md`](./infra/README.md)
+
+| Resource | Purpose |
+|----------|---------|
+| RDS PostgreSQL 16 | Private database |
+| ECR | Container images |
+| App Runner + VPC connector | Next.js web app |
+| Secrets Manager | `DATABASE_URL`, `AUTH_SECRET`, `OPENAI_API_KEY` |
+
+### Fast path (machine with AWS credentials)
+
+```bash
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_DEFAULT_REGION=eu-west-2
+export TF_VAR_openai_api_key=sk-...
+
+./scripts/aws-bootstrap.sh
+```
+
+Coach chat will be at `https://<apprunner-url>/coach`.
+
+### GitHub Actions
+
+Add repository secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `OPENAI_API_KEY`.
+
+Then run workflow **Deploy to AWS** (Actions → workflow_dispatch) or push to `main`.
+
+### Local production image smoke test
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+curl http://localhost:3000/api/health
+```

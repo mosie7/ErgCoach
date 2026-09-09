@@ -225,6 +225,22 @@ export default async function DashboardPage() {
         </section>
       </div>
 
+      <section className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="label">AI coach chat</p>
+          <h2 className="mt-1 font-display text-xl font-semibold text-ink-50">
+            Ask about progress, execution, or marathon pace realism
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-ink-400">
+            The coach retrieves your goal, recent workouts, and trends — it does not dump the whole
+            database into the model. OpenAI is used only when <code className="text-ink-300">OPENAI_API_KEY</code> is set.
+          </p>
+        </div>
+        <Link href="/coach" className="btn-primary shrink-0">
+          Open coach chat
+        </Link>
+      </section>
+
       <section className="panel p-5">
         <div className="flex items-center justify-between">
           <p className="label">Recent training</p>

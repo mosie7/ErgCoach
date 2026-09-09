@@ -1,0 +1,150 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_terraform:
+        description: 'Skip terraform apply (image-only deploy)'
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'Dockerfile'
+      - 'infra/**'
+      - '.github/workflows/deploy-aws.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION || 'eu-west-2' }}
+  TF_DIR: infra/terraform
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ergcoach/shared build
+      - run: pnpm --filter @ergcoach/training-engine build
+      - run: pnpm --filter @ergcoach/concept2 build
+      - run: pnpm --filter @ergcoach/ai-coach build
+      - run: pnpm --filter @ergcoach/training-engine test
+      - run: pnpm --filter @ergcoach/concept2 test
+      - run: pnpm --filter @ergcoach/ai-coach test
+
+  terraform:
+    needs: test
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_terraform == false }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    outputs:
+      ecr_url: ${{ steps.out.outputs.ecr_url }}
+      service_arn: ${{ steps.out.outputs.service_arn }}
+      service_url: ${{ steps.out.outputs.service_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Terraform init/apply
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          TF_VAR_environment: ${{ github.event.inputs.environment || 'staging' }}
+          TF_VAR_concept2_client_id: ${{ secrets.CONCEPT2_CLIENT_ID }}
+          TF_VAR_concept2_client_secret: ${{ secrets.CONCEPT2_CLIENT_SECRET }}
+        run: |
+          terraform init
+          terraform apply -auto-approve
+      - id: out
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          echo "ecr_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+          echo "service_arn=$(terraform output -raw apprunner_service_arn)" >> "$GITHUB_OUTPUT"
+          echo "service_url=$(terraform output -raw apprunner_service_url)" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: [test, terraform]
+    if: always() && needs.test.result == 'success' && (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve ECR / App Runner targets
+        id: targets
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          if [ -n "${{ needs.terraform.outputs.ecr_url }}" ]; then
+            echo "ecr_url=${{ needs.terraform.outputs.ecr_url }}" >> "$GITHUB_OUTPUT"
+            echo "service_arn=${{ needs.terraform.outputs.service_arn }}" >> "$GITHUB_OUTPUT"
+            echo "service_url=${{ needs.terraform.outputs.service_url }}" >> "$GITHUB_OUTPUT"
+          else
+            terraform init -input=false
+            echo "ecr_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+            echo "service_arn=$(terraform output -raw apprunner_service_arn)" >> "$GITHUB_OUTPUT"
+            echo "service_url=$(terraform output -raw apprunner_service_url)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push
+        env:
+          ECR_URL: ${{ steps.targets.outputs.ecr_url }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_URL:$IMAGE_TAG" -t "$ECR_URL:latest" .
+          docker push "$ECR_URL:$IMAGE_TAG"
+          docker push "$ECR_URL:latest"
+      - name: Deploy App Runner
+        env:
+          SERVICE_ARN: ${{ steps.targets.outputs.service_arn }}
+        run: |
+          aws apprunner start-deployment --service-arn "$SERVICE_ARN"
+          echo "Deployed to ${{ steps.targets.outputs.service_url }}"
+      - name: Wait for health
+        env:
+          SERVICE_URL: ${{ steps.targets.outputs.service_url }}
+        run: |
+          echo "Waiting for $SERVICE_URL/api/health"
+          for i in $(seq 1 40); do
+            if curl -fsS "$SERVICE_URL/api/health" | grep -q '"status"'; then
+              echo "Healthy"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Health check timed out (service may still be rolling)"
+          exit 0

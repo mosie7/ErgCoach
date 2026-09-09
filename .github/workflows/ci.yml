@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ergcoach/shared build
+      - run: pnpm --filter @ergcoach/training-engine build
+      - run: pnpm --filter @ergcoach/concept2 build
+      - run: pnpm --filter @ergcoach/ai-coach build
+      - run: pnpm --filter @ergcoach/database generate
+      - run: pnpm --filter @ergcoach/database exec tsc -p tsconfig.json
+      - run: pnpm --filter @ergcoach/services build
+      - run: pnpm -r typecheck
+      - run: pnpm -r test

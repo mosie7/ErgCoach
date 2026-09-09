@@ -16,7 +16,9 @@
     "db:seed": "pnpm --filter @ergcoach/database seed",
     "db:studio": "pnpm --filter @ergcoach/database studio",
     "db:reset": "pnpm --filter @ergcoach/database reset",
-    "db:analyse": "pnpm --filter @ergcoach/services exec tsx src/analyse-all.ts"
+    "db:analyse": "pnpm --filter @ergcoach/services exec tsx src/analyse-all.ts",
+    "docker:build": "docker build -t ergcoach-web:latest .",
+    "docker:prod": "docker compose -f docker-compose.prod.yml up --build"
   },
   "devDependencies": {
     "eslint": "^9.22.0",

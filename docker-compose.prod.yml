@@ -1,0 +1,33 @@
+# Local production-like stack (Postgres + web image)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ergcoach
+      POSTGRES_PASSWORD: ergcoach
+      POSTGRES_DB: ergcoach
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ergcoach -d ergcoach"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://ergcoach:ergcoach@postgres:5432/ergcoach?schema=public
+      AUTH_SECRET: local-prod-secret-change-me
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      CONCEPT2_USE_MOCK: "true"
+      RUN_MIGRATIONS: "true"
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy

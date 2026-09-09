@@ -1,0 +1,15 @@
+aws_region   = "eu-west-2"
+environment  = "staging"
+project_name = "ergcoach"
+
+# Set via CLI / CI secrets — do not commit real values:
+# openai_api_key = "sk-..."
+# concept2_client_id = "..."
+# concept2_client_secret = "..."
+
+db_instance_class = "db.t4g.micro"
+image_tag         = "latest"
+cpu               = "1024"
+memory            = "2048"
+concept2_use_mock = "true"
+openai_model      = "gpt-4o-mini"
