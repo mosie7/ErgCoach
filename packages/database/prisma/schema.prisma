@@ -109,6 +109,31 @@ enum SubscriptionStatus {
   incomplete
 }
 
+enum TrainingBlockStatus {
+  active
+  completed
+  planned
+  archived
+}
+
+enum TrainingBlockType {
+  marathon
+  half_marathon
+  ten_k
+  five_k
+  two_k
+  hundred_k
+  base
+  general
+  custom
+}
+
+enum BlockAssignment {
+  auto
+  manual
+  none
+}
+
 model User {
   id           String       @id @default(cuid())
   email        String       @unique
@@ -182,10 +207,13 @@ model AthleteProfile {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   goals          Goal[]
   trainingPlans  TrainingPlan[]
+  trainingBlocks TrainingBlock[]
   workouts       Workout[]
   hrZones        HeartRateZone[]
   athleteTrends  AthleteTrend[]
   weeklyReviews  WeeklyReview[]
+  chatMessages   ChatMessage[]
+  coachState     AthleteCoachState?
 }
 
 model HeartRateZone {
@@ -221,6 +249,7 @@ model Goal {
 
   athlete       AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   trainingPlans TrainingPlan[]
+  trainingBlocks TrainingBlock[]
 
   @@index([athleteId, status])
 }
@@ -238,10 +267,57 @@ model TrainingPlan {
 
   athlete         AthleteProfile  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   goal            Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  trainingBlocks  TrainingBlock[]
   plannedWorkouts PlannedWorkout[]
 
   @@index([athleteId])
   @@index([goalId])
+}
+
+model TrainingBlock {
+  id                      String              @id @default(cuid())
+  athleteId               String
+  goalId                  String?
+  trainingPlanId          String?
+  name                    String
+  description             String?
+  blockType               TrainingBlockType
+  startDate               DateTime
+  endDate                 DateTime?
+  status                  TrainingBlockStatus @default(active)
+  targetEvent             EventType?
+  targetDistance          Float?
+  targetTimeSeconds       Int?
+  targetPaceSeconds500m   Float?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  athlete      AthleteProfile  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  goal         Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  trainingPlan TrainingPlan?   @relation(fields: [trainingPlanId], references: [id], onDelete: SetNull)
+  workouts     Workout[]
+
+  @@index([athleteId, status])
+  @@index([athleteId, startDate])
+  @@index([goalId])
+  @@index([trainingPlanId])
+}
+
+model AthleteCoachState {
+  id                     String   @id @default(cuid())
+  athleteId              String   @unique
+  activeTrainingBlockId  String?
+  currentFitnessSummary  String?
+  strengths              Json     @default("[]")
+  currentLimiters        Json     @default("[]")
+  recentProgressSignals  Json     @default("[]")
+  currentConcerns        Json     @default("[]")
+  goalAssessment         Json?
+  lastUpdatedAt          DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  athlete AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 }
 
 model PlannedWorkout {
@@ -274,6 +350,9 @@ model Workout {
   source                  WorkoutSource
   externalId              String?
   plannedWorkoutId        String?
+  trainingBlockId         String?
+  blockAssignment         BlockAssignment       @default(none)
+  excludeFromAnalysis     Boolean               @default(false)
   startedAt               DateTime
   sport                   Sport                 @default(rower)
   workoutType             WorkoutClassification @default(unknown)
@@ -293,6 +372,7 @@ model Workout {
 
   athlete          AthleteProfile      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   plannedWorkout   PlannedWorkout?     @relation(fields: [plannedWorkoutId], references: [id], onDelete: SetNull)
+  trainingBlock    TrainingBlock?      @relation(fields: [trainingBlockId], references: [id], onDelete: SetNull)
   splits           WorkoutSplit[]
   strokes          WorkoutStroke[]
   subjectiveFeedback SubjectiveFeedback?
@@ -301,6 +381,7 @@ model Workout {
   @@unique([athleteId, source, externalId])
   @@index([athleteId, startedAt])
   @@index([athleteId, workoutType])
+  @@index([athleteId, trainingBlockId])
   @@index([source, externalId])
 }
 
@@ -439,6 +520,8 @@ model ChatMessage {
   content   String
   toolCalls Json?
   createdAt DateTime @default(now())
+
+  athlete AthleteProfile @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@index([athleteId, createdAt])
 }

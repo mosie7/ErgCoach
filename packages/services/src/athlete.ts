@@ -235,31 +235,6 @@ export async function assessGoalReadiness(athleteId: string) {
 export async function getComparableWorkouts(workoutId: string, limit = 5) {
   const workout = await getWorkout(workoutId);
   if (!workout) return [];
-  const history = await prisma.workout.findMany({
-    where: { athleteId: workout.athleteId },
-    orderBy: { startedAt: 'desc' },
-    take: 50,
-  });
-  const { compareEquivalentSessions } = await import('@ergcoach/training-engine');
-  return compareEquivalentSessions(
-    {
-      id: workout.id,
-      workoutType: workout.detectedClassification ?? workout.workoutType,
-      durationSeconds: workout.durationSeconds,
-      distanceMeters: workout.distanceMeters,
-      averageStrokeRate: workout.averageStrokeRate,
-      averageHeartRate: workout.averageHeartRate,
-      averagePaceSeconds500m: workout.averagePaceSeconds500m,
-    },
-    history.map((w) => ({
-      id: w.id,
-      workoutType: w.detectedClassification ?? w.workoutType,
-      durationSeconds: w.durationSeconds,
-      distanceMeters: w.distanceMeters,
-      averageStrokeRate: w.averageStrokeRate,
-      averageHeartRate: w.averageHeartRate,
-      averagePaceSeconds500m: w.averagePaceSeconds500m,
-    })),
-    limit,
-  );
+  const { findBlockAwareComparables } = await import('./training-context.js');
+  return findBlockAwareComparables(workoutId, workout.athleteId, limit);
 }

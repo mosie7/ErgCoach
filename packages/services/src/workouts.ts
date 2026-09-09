@@ -1,5 +1,6 @@
 import { prisma, type WorkoutClassification, type WorkoutSource } from '@ergcoach/database';
 import { runPostWorkoutAnalysis } from './analysis.js';
+import { resolveBlockForWorkoutDate } from './blocks.js';
 
 export interface ManualWorkoutInput {
   athleteId: string;
@@ -14,6 +15,8 @@ export interface ManualWorkoutInput {
   maxHeartRate?: number | null;
   averageStrokeRate?: number | null;
   plannedWorkoutId?: string | null;
+  trainingBlockId?: string | null;
+  excludeFromAnalysis?: boolean;
   splits?: Array<{
     durationSeconds: number;
     distanceMeters: number;
@@ -40,12 +43,25 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
   const externalId =
     input.externalId ?? `manual-${input.startedAt.toISOString()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  let trainingBlockId = input.trainingBlockId ?? null;
+  let blockAssignment: 'auto' | 'manual' | 'none' = trainingBlockId ? 'manual' : 'none';
+  if (!trainingBlockId && !input.excludeFromAnalysis) {
+    const block = await resolveBlockForWorkoutDate(input.athleteId, input.startedAt);
+    if (block) {
+      trainingBlockId = block.id;
+      blockAssignment = 'auto';
+    }
+  }
+
   const workout = await prisma.workout.create({
     data: {
       athleteId: input.athleteId,
       source,
       externalId,
       plannedWorkoutId: input.plannedWorkoutId ?? null,
+      trainingBlockId,
+      blockAssignment,
+      excludeFromAnalysis: input.excludeFromAnalysis ?? false,
       startedAt: input.startedAt,
       sport: input.workoutType === 'strength' ? 'strength' : 'rower',
       workoutType: input.workoutType,
@@ -87,6 +103,7 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
       splits: { orderBy: { index: 'asc' } },
       subjectiveFeedback: true,
       plannedWorkout: true,
+      trainingBlock: true,
     },
   });
 
@@ -99,6 +116,7 @@ export async function createManualWorkout(input: ManualWorkoutInput) {
         subjectiveFeedback: true,
         analysis: true,
         plannedWorkout: true,
+        trainingBlock: true,
       },
     });
   }

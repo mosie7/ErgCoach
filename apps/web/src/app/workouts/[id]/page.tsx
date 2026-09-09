@@ -2,6 +2,7 @@ import { getComparableWorkouts, getWorkout } from '@ergcoach/services';
 import { formatDistance, formatDuration, formatPace } from '@ergcoach/shared';
 import { Metric, VerdictBadge } from '@/components/ui';
 import { SplitCharts } from '@/components/SplitCharts';
+import { WhyEvidence, type WhyItem } from '@/components/WhyEvidence';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -18,6 +19,8 @@ export default async function WorkoutDetailPage({
 
   const comparable = await getComparableWorkouts(id, 5);
   const metrics = (workout.analysis?.calculatedMetrics ?? {}) as Record<string, unknown>;
+  const whyEvidence = (metrics.whyEvidence as WhyItem[] | undefined) ?? [];
+  const trainingBlock = metrics.trainingBlock as { name?: string; id?: string } | null;
   const ai = (workout.analysis?.aiAnalysis ?? null) as {
     summary?: string;
     sessionVerdict?: string;
@@ -31,6 +34,8 @@ export default async function WorkoutDetailPage({
     confidence?: string;
     evidence?: string[];
   } | null;
+
+  const topComparable = whyEvidence[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -192,31 +197,106 @@ export default async function WorkoutDetailPage({
       </div>
 
       <section className="panel p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="label">AI coaching report</p>
-          {ai?.confidence ? (
-            <span className="text-xs capitalize text-apple-gray-500">{ai.confidence} confidence</span>
-          ) : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="label">Session verdict</p>
+            <h2 className="section-title mt-2">
+              {ai?.sessionVerdict && ai.sessionVerdict !== 'unknown'
+                ? `${ai.sessionVerdict.charAt(0).toUpperCase()}${ai.sessionVerdict.slice(1)} ${workout.detectedClassification ?? workout.workoutType}`
+                : (ai?.summary?.split('.')[0] ?? 'Session analysed')}
+            </h2>
+            {trainingBlock?.name ? (
+              <p className="mt-1 text-[13px] text-apple-gray-500">
+                Compared within {trainingBlock.name}
+                {typeof metrics.currentWeek === 'number' ? ` · week ${metrics.currentWeek}` : ''}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <VerdictBadge verdict={ai?.sessionVerdict ?? workout.analysis?.sessionVerdict} />
+            {ai?.confidence ? (
+              <span className="text-xs capitalize text-apple-gray-500">{ai.confidence} confidence</span>
+            ) : null}
+          </div>
         </div>
+
         {ai ? (
-          <div className="mt-3 space-y-4">
-            <p className="text-base leading-relaxed text-apple-gray-700 dark:text-apple-gray-100">{ai.summary}</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <ListBlock title="What was achieved" items={ai.whatWasAchieved} />
-              <ListBlock title="Execution" items={ai.executionAnalysis} />
-              <ListBlock title="Positive signals" items={ai.positiveSignals} tone="good" />
-              <ListBlock title="Concerns" items={ai.concerns} tone="warn" />
-            </div>
+          <div className="mt-6 space-y-6">
             <div>
-              <p className="label">Goal impact</p>
+              <p className="label">What you achieved</p>
+              <p className="mt-2 text-[15px] tabular-nums text-apple-gray-700 dark:text-apple-gray-100">
+                {formatDistance(workout.distanceMeters)} · {formatPace(workout.averagePaceSeconds500m)}
+                {workout.averageStrokeRate != null ? ` · ${workout.averageStrokeRate} spm` : ''}
+                {workout.averageHeartRate != null
+                  ? ` · avg HR ${Math.round(workout.averageHeartRate)}`
+                  : ''}
+              </p>
+              <ListBlock title="" items={ai.whatWasAchieved} />
+            </div>
+
+            <div>
+              <p className="label">How it compares</p>
+              {topComparable?.previous ? (
+                <div className="mt-2 grid gap-3 sm:grid-cols-2 text-[14px]">
+                  <div className="rounded-apple bg-apple-gray-50 p-3 dark:bg-apple-gray-800">
+                    <p className="text-[12px] text-apple-gray-400">Previous comparable</p>
+                    <p className="mt-1 tabular-nums">
+                      {topComparable.previous.paceFormatted ?? '—'}
+                      {topComparable.previous.hr != null
+                        ? ` · ${Math.round(topComparable.previous.hr)} bpm`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="rounded-apple bg-apple-gray-50 p-3 dark:bg-apple-gray-800">
+                    <p className="text-[12px] text-apple-gray-400">Change</p>
+                    <p className="mt-1 tabular-nums">
+                      {topComparable.deltas?.paceSecondsFaster != null
+                        ? `${topComparable.deltas.paceSecondsFaster > 0 ? '+' : ''}${topComparable.deltas.paceSecondsFaster}s/500m`
+                        : '—'}
+                      {topComparable.deltas?.hrDelta != null
+                        ? ` · HR ${topComparable.deltas.hrDelta > 0 ? '+' : ''}${topComparable.deltas.hrDelta}`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-[14px] text-apple-gray-500">
+                  Not enough similar sessions in the current block yet for a tight comparison.
+                </p>
+              )}
+              <WhyEvidence
+                claim={
+                  ai.positiveSignals?.[0] ??
+                  ai.progressAssessment ??
+                  'Comparison uses current-block priority scoring.'
+                }
+                items={whyEvidence}
+                todayPace={workout.averagePaceSeconds500m}
+                todayHr={workout.averageHeartRate}
+              />
+            </div>
+
+            <div>
+              <p className="label">What it means for your goal</p>
               <p className="mt-1 text-sm text-apple-gray-500">{ai.goalImpact}</p>
+              <p className="mt-2 text-sm text-apple-gray-500">{ai.progressAssessment}</p>
             </div>
+
             <div>
-              <p className="label">Progress assessment</p>
-              <p className="mt-1 text-sm text-apple-gray-500">{ai.progressAssessment}</p>
+              <p className="label">What to watch next</p>
+              <ListBlock title="" items={ai.nextFocus} />
             </div>
-            <ListBlock title="Next focus" items={ai.nextFocus} />
-            <ListBlock title="Evidence" items={ai.evidence} />
+
+            <details className="text-[13px] text-apple-gray-500">
+              <summary className="cursor-pointer text-apple-blue">Full coach notes</summary>
+              <div className="mt-3 space-y-3">
+                <p>{ai.summary}</p>
+                <ListBlock title="Execution" items={ai.executionAnalysis} />
+                <ListBlock title="Positive signals" items={ai.positiveSignals} tone="good" />
+                <ListBlock title="Concerns" items={ai.concerns} tone="warn" />
+                <ListBlock title="Evidence" items={ai.evidence} />
+              </div>
+            </details>
           </div>
         ) : (
           <p className="mt-3 text-sm text-apple-gray-500">
@@ -235,7 +315,10 @@ export default async function WorkoutDetailPage({
                   href={`/workouts/${c.workoutId}`}
                   className="flex items-center justify-between rounded-lg border border-apple-gray-200 dark:border-apple-gray-800 px-3 py-2 text-sm hover:bg-apple-gray-50 dark:bg-apple-gray-900"
                 >
-                  <span className="text-apple-gray-600 dark:text-apple-gray-200">{c.reasons.slice(0, 2).join(' · ')}</span>
+                  <span className="text-apple-gray-600 dark:text-apple-gray-200">
+                    {'tier' in c ? `${String((c as { tier?: string }).tier ?? '').replace('_', ' ')} · ` : ''}
+                    {c.reasons.slice(0, 2).join(' · ')}
+                  </span>
                   <span className="font-mono text-apple-blue">{Math.round(c.similarityScore)}</span>
                 </Link>
               </li>

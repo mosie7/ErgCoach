@@ -6,7 +6,10 @@ export type Entitlement =
   | 'dashboard'
   | 'ai_coach_chat'
   | 'ai_workout_analysis'
-  | 'ai_weekly_review';
+  | 'ai_weekly_review'
+  | 'training_blocks'
+  | 'comparable_analysis'
+  | 'why_evidence';
 
 export interface PlanDefinition {
   id: PlanId;
@@ -41,6 +44,9 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       'ai_coach_chat',
       'ai_workout_analysis',
       'ai_weekly_review',
+      'training_blocks',
+      'comparable_analysis',
+      'why_evidence',
     ],
     highlighted: true,
   },

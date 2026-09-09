@@ -8,6 +8,7 @@ import {
   getTrainingProgram,
   TRAINING_PROGRAMS,
 } from '@ergcoach/training-engine';
+import { createTrainingBlock, eventTypeToBlockType } from './blocks.js';
 
 export { TRAINING_PROGRAMS, getTrainingProgram };
 
@@ -25,6 +26,8 @@ export interface StartTrainingProgramInput {
   targetTimeSeconds?: number | null;
   weeks?: number;
   startDate?: Date;
+  /** If set, block start may differ from plan start (e.g. "started 8 weeks ago") */
+  blockStartDate?: Date;
 }
 
 export async function startTrainingProgram(input: StartTrainingProgramInput) {
@@ -45,8 +48,6 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
   const program = generated.program;
   const targetDistance = program.distanceMeters;
   const targetPace = input.targetPaceSeconds500m ?? null;
-  // Goal target time uses race pace only when paceReference is race; for 5k-referenced
-  // endurance plans, leave targetTime unset unless explicitly provided.
   const targetTime =
     input.targetTimeSeconds != null
       ? Number(input.targetTimeSeconds)
@@ -62,7 +63,7 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
     .filter(Boolean)
     .join(' ');
 
-  return prisma.$transaction(async (tx) => {
+  const { goal, plan } = await prisma.$transaction(async (tx) => {
     await tx.goal.updateMany({
       where: { athleteId: input.athleteId, status: 'active' },
       data: { status: 'abandoned' },
@@ -117,8 +118,27 @@ export async function startTrainingProgram(input: StartTrainingProgramInput) {
       },
     });
 
-    return { goal, plan, program };
+    return { goal, plan };
   });
+
+  const year = new Date().getFullYear();
+  const block = await createTrainingBlock({
+    athleteId: input.athleteId,
+    goalId: goal.id,
+    trainingPlanId: plan.id,
+    name: `${year} ${program.shortLabel} Build`,
+    description: program.summary,
+    blockType: eventTypeToBlockType(input.eventType),
+    startDate: input.blockStartDate ?? generated.startDate,
+    endDate: generated.endDate,
+    targetEvent: input.eventType,
+    targetDistance,
+    targetTimeSeconds: targetTime,
+    targetPaceSeconds500m: targetPace,
+    associateExistingWorkouts: true,
+  });
+
+  return { goal, plan, program, block };
 }
 
 export async function listUpcomingPlannedWorkouts(athleteId: string, limit = 12) {
